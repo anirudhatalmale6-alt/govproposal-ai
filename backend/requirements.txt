@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+google-generativeai
+python-docx
+reportlab
+requests
+pydantic
+python-multipart
+aiofiles
+jinja2
+python-dotenv
