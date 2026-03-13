@@ -29,7 +29,7 @@ from models import (
     AVAILABLE_SECTIONS,
 )
 from database import get_db, create_tables
-from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource
+from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource, ProposalTemplate, FavoriteTemplate
 from services.ai_service import AIService
 from services.sam_service import SAMService
 from services.export_service import generate_docx, generate_pdf
@@ -135,6 +135,18 @@ async def on_startup():
                 db.add(sam_source)
                 await db.commit()
                 logger.info("Default search source (SAM.gov) created.")
+
+            # Seed proposal templates
+            from seed_templates import get_seed_templates
+
+            result = await db.execute(select(func.count(ProposalTemplate.id)))
+            template_count = result.scalar() or 0
+            if template_count == 0:
+                for tpl_data in get_seed_templates():
+                    tpl = ProposalTemplate(**tpl_data)
+                    db.add(tpl)
+                await db.commit()
+                logger.info("Seeded %d proposal templates.", len(get_seed_templates()))
 
         except Exception as exc:
             await db.rollback()
@@ -574,6 +586,135 @@ async def delete_search_source(
     logger.info("Search source removed: %s (by %s)", source.name, current_user.email)
 
     return {"message": f"Source '{source.name}' removed from master search list."}
+
+
+# ============================================================
+# Proposal Templates (authenticated)
+# ============================================================
+
+@app.get("/api/templates")
+async def list_templates(
+    category: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all proposal templates, optionally filtered by category."""
+    query = select(ProposalTemplate)
+    if category:
+        query = query.where(ProposalTemplate.category == category)
+    query = query.order_by(ProposalTemplate.category, ProposalTemplate.name)
+
+    result = await db.execute(query)
+    templates = result.scalars().all()
+
+    # Get user's favorites
+    fav_result = await db.execute(
+        select(FavoriteTemplate.template_id).where(FavoriteTemplate.user_id == current_user.id)
+    )
+    fav_ids = set(row[0] for row in fav_result.all())
+
+    # Get unique categories
+    cat_result = await db.execute(
+        select(ProposalTemplate.category).distinct()
+    )
+    categories = sorted([row[0] for row in cat_result.all()])
+
+    templates_data = []
+    for t in templates:
+        d = t.to_dict()
+        d["is_favorite"] = t.id in fav_ids
+        # Don't include full sections in list view (too large)
+        d.pop("sections", None)
+        templates_data.append(d)
+
+    return {
+        "count": len(templates_data),
+        "categories": categories,
+        "templates": templates_data,
+    }
+
+
+@app.get("/api/templates/{template_id}")
+async def get_template(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a specific template with full sections content."""
+    result = await db.execute(
+        select(ProposalTemplate).where(ProposalTemplate.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    if template is None:
+        raise HTTPException(status_code=404, detail="Template not found.")
+
+    # Check if favorited
+    fav_result = await db.execute(
+        select(FavoriteTemplate).where(
+            FavoriteTemplate.user_id == current_user.id,
+            FavoriteTemplate.template_id == template_id,
+        )
+    )
+    is_fav = fav_result.scalar_one_or_none() is not None
+
+    data = template.to_dict()
+    data["is_favorite"] = is_fav
+    return {"template": data}
+
+
+@app.post("/api/templates/{template_id}/use")
+async def use_template(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a template as used (increment use count) and return its full data."""
+    result = await db.execute(
+        select(ProposalTemplate).where(ProposalTemplate.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    if template is None:
+        raise HTTPException(status_code=404, detail="Template not found.")
+
+    template.use_count = (template.use_count or 0) + 1
+    db.add(template)
+    await db.flush()
+
+    return {"template": template.to_dict()}
+
+
+@app.post("/api/templates/{template_id}/favorite")
+async def toggle_favorite(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle favorite status of a template for the current user."""
+    # Check template exists
+    result = await db.execute(
+        select(ProposalTemplate).where(ProposalTemplate.id == template_id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Template not found.")
+
+    # Check existing favorite
+    result = await db.execute(
+        select(FavoriteTemplate).where(
+            FavoriteTemplate.user_id == current_user.id,
+            FavoriteTemplate.template_id == template_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        await db.flush()
+        return {"favorited": False, "message": "Template removed from favorites."}
+    else:
+        fav = FavoriteTemplate(user_id=current_user.id, template_id=template_id)
+        db.add(fav)
+        await db.flush()
+        return {"favorited": True, "message": "Template added to favorites."}
 
 
 # ============================================================

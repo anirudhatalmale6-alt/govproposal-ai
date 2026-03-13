@@ -11,6 +11,7 @@ import {
   FolderOpenIcon,
   ShieldCheckIcon,
   ArrowRightStartOnRectangleIcon,
+  RectangleStackIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,6 +20,7 @@ const navItems = [
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
   { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
   { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
+  { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
   { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
 ];
 

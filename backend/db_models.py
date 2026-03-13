@@ -1,7 +1,8 @@
 """
 SQLAlchemy ORM models for GovProposal AI.
 
-Tables: User, VendorProfileDB, Proposal, Subscription, SearchSource
+Tables: User, VendorProfileDB, Proposal, Subscription, SearchSource,
+       ProposalTemplate, FavoriteTemplate
 """
 
 import uuid
@@ -207,5 +208,64 @@ class SearchSource(Base):
             "is_default": self.is_default,
             "is_active": self.is_active,
             "added_by": self.added_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ──────────────────────────────────────────────
+# ProposalTemplate (pre-built sample templates organized by industry)
+# ──────────────────────────────────────────────
+
+class ProposalTemplate(Base):
+    __tablename__ = "proposal_templates"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False, default="")
+    category = Column(String(100), nullable=False)  # e.g. "IT & Technology", "Healthcare"
+    thumbnail_color = Column(String(7), nullable=False, default="#1e3a5f")  # hex color for card UI
+    sections = Column(JSON, nullable=False, default=dict)  # Pre-filled proposal sections content
+    vendor_defaults = Column(JSON, nullable=False, default=dict)  # Default vendor info for this template
+    opportunity_defaults = Column(JSON, nullable=False, default=dict)  # Default opportunity info
+    is_free = Column(Boolean, default=True, nullable=False)
+    use_count = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "category": self.category,
+            "thumbnail_color": self.thumbnail_color,
+            "sections": self.sections or {},
+            "vendor_defaults": self.vendor_defaults or {},
+            "opportunity_defaults": self.opportunity_defaults or {},
+            "is_free": self.is_free,
+            "use_count": self.use_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ──────────────────────────────────────────────
+# FavoriteTemplate (user's saved favorite templates)
+# ──────────────────────────────────────────────
+
+class FavoriteTemplate(Base):
+    __tablename__ = "favorite_templates"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    template_id = Column(String(36), ForeignKey("proposal_templates.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+    template = relationship("ProposalTemplate", foreign_keys=[template_id])
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "template_id": self.template_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

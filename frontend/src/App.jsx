@@ -8,6 +8,7 @@ import ProposalGenerator from './pages/ProposalGenerator';
 import ProposalEditor from './pages/ProposalEditor';
 import Proposals from './pages/Proposals';
 import Admin from './pages/Admin';
+import Templates from './pages/Templates';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -125,6 +126,7 @@ function AppRoutes() {
         <Route path="/new-proposal" element={<ProposalGenerator />} />
         <Route path="/proposal-editor" element={<ProposalEditor />} />
         <Route path="/proposals" element={<Proposals />} />
+        <Route path="/templates" element={<Templates />} />
         <Route path="/admin" element={<Admin />} />
       </Route>
 
