@@ -248,6 +248,35 @@ SECTION_PROMPTS: Dict[str, str] = {
         "5. Subcontractor Management - oversight, performance monitoring\n\n"
         "Per FAR 52.219-9, demonstrate commitment to maximizing small business participation."
     ),
+    "compliance_matrix": (
+        "Write a Compliance Matrix / Requirements Traceability Matrix section.\n\n"
+        "Create a structured matrix that maps each solicitation requirement to:\n"
+        "1. Requirement ID/Reference (Section C/L paragraph numbers)\n"
+        "2. Requirement Description\n"
+        "3. Proposal Response Location (volume, section, page)\n"
+        "4. Compliance Status (Compliant/Partially Compliant/Exception)\n"
+        "5. Brief Compliance Narrative (how the requirement is met)\n\n"
+        "Cover requirements from:\n"
+        "- Technical requirements (SOW/PWS)\n"
+        "- Administrative requirements (Section L instructions)\n"
+        "- Evaluation criteria (Section M)\n"
+        "- Mandatory certifications and clauses\n\n"
+        "Demonstrate thorough understanding of every requirement and provide "
+        "a clear roadmap showing where each is addressed in the proposal."
+    ),
+    "implementation_timeline": (
+        "Write an Implementation Timeline section for a government contract proposal.\n\n"
+        "Include:\n"
+        "1. Project Phases — clearly defined phases with start/end dates\n"
+        "2. Key Milestones — critical deliverables and decision points\n"
+        "3. Dependencies — inter-task dependencies and critical path items\n"
+        "4. Resource Allocation — staffing levels by phase\n"
+        "5. Deliverable Schedule — when each deliverable will be submitted\n"
+        "6. Review/Approval Cycles — government review periods built in\n"
+        "7. Ramp-Up and Ramp-Down periods\n\n"
+        "Present a realistic, achievable timeline that demonstrates thorough planning "
+        "and understanding of the work scope. Include buffer for government review cycles."
+    ),
 }
 
 # Human-readable section titles
@@ -267,6 +296,8 @@ SECTION_TITLES: Dict[str, str] = {
     "risk_mitigation": "Risk Mitigation Plan",
     "transition_plan": "Transition / Phase-In Plan",
     "subcontracting_plan": "Small Business Subcontracting Plan",
+    "compliance_matrix": "Compliance Matrix",
+    "implementation_timeline": "Implementation Timeline",
     "compliance_checklist": "Compliance Checklist",
 }
 
@@ -669,6 +700,62 @@ class AIService:
                 f"{company} has a proven track record of exceeding small business subcontracting goals "
                 f"and is committed to maximizing opportunities for small businesses."
             ),
+            "compliance_matrix": (
+                f"Compliance Matrix\n\n"
+                f"The following matrix maps each solicitation requirement to {company}'s proposal response.\n\n"
+                f"Req ID | Requirement | Proposal Section | Status | Narrative\n"
+                f"{'─' * 80}\n"
+                f"C.1.1 | Technical approach per SOW | Technical Approach, §3 | Compliant | "
+                f"{company} addresses all technical requirements through our proven methodology.\n\n"
+                f"C.2.1 | Key personnel qualifications | Key Personnel, §4 | Compliant | "
+                f"All proposed key personnel meet or exceed stated qualifications.\n\n"
+                f"C.3.1 | Quality management system | Quality Assurance, §5 | Compliant | "
+                f"ISO 9001:2015 certified QMS in place and operational.\n\n"
+                f"C.4.1 | Security requirements | Compliance Checklist, §9 | Compliant | "
+                f"NIST 800-171 compliant; facility clearance current.\n\n"
+                f"L.1.1 | Page limit compliance | All volumes | Compliant | "
+                f"All volumes within specified page limits.\n\n"
+                f"L.2.1 | Format requirements (font, margins) | All volumes | Compliant | "
+                f"12pt Times New Roman, 1-inch margins throughout.\n\n"
+                f"M.1.1 | Technical approach evaluation | Technical Approach, §3 | Compliant | "
+                f"Addresses all evaluation sub-factors per Section M.\n\n"
+                f"M.2.1 | Past performance evaluation | Past Performance, §6 | Compliant | "
+                f"Three relevant references with CPARS ratings provided.\n\n"
+                f"M.3.1 | Price evaluation | Cost/Price Proposal, §7 | Compliant | "
+                f"Fair and reasonable pricing with complete cost breakdown.\n\n"
+                f"{company} has performed a comprehensive compliance review and confirms "
+                f"full compliance with all solicitation requirements."
+            ),
+            "implementation_timeline": (
+                f"Implementation Timeline\n\n"
+                f"{company} proposes the following phased implementation plan for {opp_title}:\n\n"
+                f"PHASE 1: MOBILIZATION & TRANSITION (Months 1-2)\n"
+                f"Week 1-2: Contract kick-off, personnel onboarding, access provisioning\n"
+                f"Week 3-4: Knowledge transfer from incumbent, systems setup\n"
+                f"Week 5-6: Shadow operations, process documentation\n"
+                f"Week 7-8: Full operational capability achieved\n"
+                f"Milestone: Transition Complete — Full operations assumed\n\n"
+                f"PHASE 2: CORE IMPLEMENTATION (Months 3-8)\n"
+                f"Month 3-4: Requirements analysis, solution design, stakeholder reviews\n"
+                f"Month 5-6: Core development/delivery, iterative testing\n"
+                f"Month 7-8: Integration testing, user acceptance testing\n"
+                f"Milestone: Core Deliverables — Primary deliverables accepted\n\n"
+                f"PHASE 3: OPTIMIZATION & STEADY STATE (Months 9-12)\n"
+                f"Month 9-10: Performance optimization, training delivery\n"
+                f"Month 11-12: Continuous improvement, lessons learned, option year planning\n"
+                f"Milestone: Year 1 Complete — All base year deliverables submitted\n\n"
+                f"KEY MILESTONES:\n"
+                f"- Contract Award + 30 days: Transition Complete\n"
+                f"- Contract Award + 90 days: First Major Deliverable\n"
+                f"- Contract Award + 180 days: Mid-Year Review\n"
+                f"- Contract Award + 365 days: Base Year Complete\n\n"
+                f"STAFFING BY PHASE:\n"
+                f"Phase 1: 6 FTEs (transition team + key personnel)\n"
+                f"Phase 2: 10 FTEs (full project team)\n"
+                f"Phase 3: 8 FTEs (steady-state operations)\n\n"
+                f"All timelines include built-in government review periods (10 business days "
+                f"per deliverable review cycle)."
+            ),
         }
 
         return templates.get(section_key, f"[Demo content for {section_key}]")
@@ -789,6 +876,20 @@ class AIService:
             lines.append(f"Number of Employees: {vendor['number_of_employees']}")
         if vendor.get("annual_revenue"):
             lines.append(f"Annual Revenue: {vendor['annual_revenue']}")
+
+        if vendor.get("registered_address"):
+            lines.append(f"Registered/HQ Address: {vendor['registered_address']}")
+        branches = vendor.get("branches", [])
+        if branches and isinstance(branches, list):
+            branch_strs = []
+            for b in branches:
+                if isinstance(b, dict):
+                    name = b.get("name", "")
+                    addr = b.get("address", "")
+                    if name or addr:
+                        branch_strs.append(f"{name}: {addr}" if name and addr else name or addr)
+            if branch_strs:
+                lines.append(f"Branch Offices: {'; '.join(branch_strs)}")
 
         lines.append(f"Capabilities: {vendor.get('capabilities', 'Not specified')}")
         lines.append(f"Past Performance: {vendor.get('past_performance', 'Not specified')}")

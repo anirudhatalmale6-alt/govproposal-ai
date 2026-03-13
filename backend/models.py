@@ -70,6 +70,8 @@ AVAILABLE_SECTIONS: List[str] = [
     "risk_mitigation",
     "transition_plan",
     "subcontracting_plan",
+    "compliance_matrix",
+    "implementation_timeline",
     "compliance_checklist",
 ]
 

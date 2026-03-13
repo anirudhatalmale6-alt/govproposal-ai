@@ -49,6 +49,8 @@ const proposalSections = [
   { key: 'risk_mitigation', label: 'Risk Mitigation Plan' },
   { key: 'transition_plan', label: 'Transition / Phase-In Plan' },
   { key: 'subcontracting_plan', label: 'Small Business Subcontracting Plan' },
+  { key: 'compliance_matrix', label: 'Compliance Matrix' },
+  { key: 'implementation_timeline', label: 'Implementation Timeline' },
   { key: 'compliance_checklist', label: 'Compliance Checklist' },
 ];
 

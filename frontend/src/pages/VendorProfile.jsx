@@ -10,6 +10,8 @@ import {
   ShieldCheckIcon,
   DocumentCheckIcon,
   BriefcaseIcon,
+  PlusIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import NaicsCodeSelector from '../components/NaicsCodeSelector';
@@ -90,6 +92,8 @@ const initialProfile = {
   security_clearance_level: 'None',
   certifications: [],
   contract_vehicles: [],
+  registered_address: '',
+  branches: [],
   contact_name: '',
   contact_email: '',
   contact_phone: '',
@@ -124,6 +128,34 @@ export default function VendorProfile() {
 
   const handleChange = (field, value) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
+    setSuccess('');
+    setError('');
+  };
+
+  const addBranch = () => {
+    setProfile((prev) => ({
+      ...prev,
+      branches: [...(prev.branches || []), { name: '', address: '' }],
+    }));
+    setSuccess('');
+    setError('');
+  };
+
+  const updateBranch = (index, field, value) => {
+    setProfile((prev) => {
+      const branches = [...(prev.branches || [])];
+      branches[index] = { ...branches[index], [field]: value };
+      return { ...prev, branches };
+    });
+    setSuccess('');
+    setError('');
+  };
+
+  const removeBranch = (index) => {
+    setProfile((prev) => ({
+      ...prev,
+      branches: (prev.branches || []).filter((_, i) => i !== index),
+    }));
     setSuccess('');
     setError('');
   };
@@ -322,6 +354,93 @@ export default function VendorProfile() {
                 selectedCodes={profile.naics_codes || []}
                 onChange={(codes) => handleChange('naics_codes', codes)}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Registered Address & Branch Offices */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-navy mb-5 flex items-center gap-2">
+            <MapPinIcon className="w-5 h-5" />
+            Registered Address & Branch Offices
+          </h2>
+          <div className="space-y-5">
+            <div>
+              <label className={labelClass}>
+                Registered / Headquarters Address
+              </label>
+              <textarea
+                value={profile.registered_address}
+                onChange={(e) => handleChange('registered_address', e.target.value)}
+                placeholder="Full registered address including street, city, state, ZIP code..."
+                rows={2}
+                className={`${inputClass} resize-y`}
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className={labelClass + ' mb-0'}>
+                  Branch Offices{' '}
+                  <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={addBranch}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-navy bg-navy/5 hover:bg-navy/10 rounded-lg transition-colors cursor-pointer"
+                >
+                  <PlusIcon className="w-3.5 h-3.5" />
+                  Add Branch
+                </button>
+              </div>
+              {(profile.branches || []).length === 0 ? (
+                <p className="text-sm text-gray-400 italic">
+                  No branch offices added. Click "Add Branch" to add one.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {(profile.branches || []).map((branch, index) => (
+                    <div
+                      key={index}
+                      className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 relative"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => removeBranch(index)}
+                        className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                        title="Remove branch"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Branch Name
+                          </label>
+                          <input
+                            type="text"
+                            value={branch.name}
+                            onChange={(e) => updateBranch(index, 'name', e.target.value)}
+                            placeholder="e.g., West Coast Office"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Branch Address
+                          </label>
+                          <input
+                            type="text"
+                            value={branch.address}
+                            onChange={(e) => updateBranch(index, 'address', e.target.value)}
+                            placeholder="Full address..."
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
