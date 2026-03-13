@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   DocumentTextIcon,
@@ -10,30 +11,8 @@ import {
   DocumentDuplicateIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-
-const stats = [
-  {
-    label: 'Total Proposals',
-    value: '12',
-    icon: DocumentTextIcon,
-    color: 'bg-blue',
-    change: '+3 this month',
-  },
-  {
-    label: 'Pending Review',
-    value: '4',
-    icon: ClockIcon,
-    color: 'bg-amber-500',
-    change: '2 due this week',
-  },
-  {
-    label: 'Completed',
-    value: '8',
-    icon: CheckCircleIcon,
-    color: 'bg-accent',
-    change: '67% win rate',
-  },
-];
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 const quickActions = [
   {
@@ -59,47 +38,102 @@ const quickActions = [
   },
 ];
 
-const recentProposals = [
-  {
-    id: 1,
-    title: 'IT Infrastructure Modernization',
-    agency: 'Department of Defense',
-    status: 'Completed',
-    statusColor: 'text-accent bg-accent/10',
-    date: '2026-03-10',
-  },
-  {
-    id: 2,
-    title: 'Cybersecurity Assessment Services',
-    agency: 'Department of Homeland Security',
-    status: 'In Progress',
-    statusColor: 'text-blue bg-blue/10',
-    date: '2026-03-08',
-  },
-  {
-    id: 3,
-    title: 'Cloud Migration Services',
-    agency: 'General Services Administration',
-    status: 'Pending Review',
-    statusColor: 'text-amber-600 bg-amber-100',
-    date: '2026-03-05',
-  },
-  {
-    id: 4,
-    title: 'Data Analytics Platform',
-    agency: 'Department of Health & Human Services',
-    status: 'Completed',
-    statusColor: 'text-accent bg-accent/10',
-    date: '2026-03-01',
-  },
-];
+const statusColors = {
+  draft: 'text-amber-600 bg-amber-100',
+  completed: 'text-accent bg-accent/10',
+  in_progress: 'text-blue bg-blue/10',
+};
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProposals();
+  }, []);
+
+  const fetchProposals = async () => {
+    try {
+      const response = await api.get('/api/proposals');
+      const data = response.data?.proposals || response.data || [];
+      setProposals(data);
+    } catch {
+      // Silently fail — dashboard will show zeroes
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Compute stats from real proposals
+  const totalProposals = proposals.length;
+  const completedProposals = proposals.filter(
+    (p) => p.status?.toLowerCase() === 'completed'
+  ).length;
+  const pendingProposals = proposals.filter(
+    (p) =>
+      p.status?.toLowerCase() === 'draft' ||
+      p.status?.toLowerCase() === 'in_progress'
+  ).length;
+
+  const stats = [
+    {
+      label: 'Total Proposals',
+      value: totalProposals.toString(),
+      icon: DocumentTextIcon,
+      color: 'bg-blue',
+      change: `${completedProposals} completed`,
+    },
+    {
+      label: 'In Progress',
+      value: pendingProposals.toString(),
+      icon: ClockIcon,
+      color: 'bg-amber-500',
+      change: pendingProposals > 0 ? 'Needs attention' : 'All clear',
+    },
+    {
+      label: 'Completed',
+      value: completedProposals.toString(),
+      icon: CheckCircleIcon,
+      color: 'bg-accent',
+      change:
+        totalProposals > 0
+          ? `${Math.round((completedProposals / totalProposals) * 100)}% completion rate`
+          : 'Get started!',
+    },
+  ];
+
+  const recentProposals = proposals.slice(0, 5);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '--';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatStatus = (status) => {
+    if (!status) return 'Draft';
+    return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  const userName = user?.full_name
+    ? user.full_name.split(' ')[0]
+    : 'there';
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy">Welcome Back</h1>
+        <h1 className="text-3xl font-bold text-navy">
+          Welcome Back{userName !== 'there' ? `, ${userName}` : ''}
+        </h1>
         <p className="text-gray-500 mt-1">
           Manage your government proposals and track opportunities
         </p>
@@ -117,7 +151,13 @@ export default function Dashboard() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-                  <p className="text-3xl font-bold text-navy mt-2">{stat.value}</p>
+                  <p className="text-3xl font-bold text-navy mt-2">
+                    {loading ? (
+                      <span className="inline-block w-8 h-8 bg-gray-100 rounded animate-pulse" />
+                    ) : (
+                      stat.value
+                    )}
+                  </p>
                   <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
                     <ArrowTrendingUpIcon className="w-3.5 h-3.5" />
                     {stat.change}
@@ -161,60 +201,103 @@ export default function Dashboard() {
             Recent Proposals
           </h2>
           <Link
-            to="/new-proposal"
+            to="/proposals"
             className="text-sm font-medium text-blue hover:text-blue-light no-underline"
           >
             View all
           </Link>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
-                  Proposal
-                </th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
-                  Agency
-                </th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
-                  Status
-                </th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
-                  Date
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentProposals.map((proposal) => (
-                <tr
-                  key={proposal.id}
-                  className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
+          {loading ? (
+            <div className="p-8 text-center">
+              <svg
+                className="animate-spin w-6 h-6 text-navy mx-auto mb-2"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              <p className="text-sm text-gray-400">Loading proposals...</p>
+            </div>
+          ) : recentProposals.length === 0 ? (
+            <div className="p-8 text-center">
+              <DocumentTextIcon className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">
+                No proposals yet.{' '}
+                <Link
+                  to="/new-proposal"
+                  className="text-blue hover:text-blue-light no-underline font-medium"
                 >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <DocumentTextIcon className="w-5 h-5 text-gray-400" />
-                      <span className="font-medium text-gray-900 text-sm">
-                        {proposal.title}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{proposal.agency}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${proposal.statusColor}`}
-                    >
-                      {proposal.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-400 flex items-center gap-1.5">
-                    <CalendarDaysIcon className="w-4 h-4" />
-                    {proposal.date}
-                  </td>
+                  Generate your first one
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
+                    Proposal
+                  </th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
+                    Agency
+                  </th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
+                    Status
+                  </th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">
+                    Date
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentProposals.map((proposal) => (
+                  <tr
+                    key={proposal.id}
+                    className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <DocumentTextIcon className="w-5 h-5 text-gray-400" />
+                        <span className="font-medium text-gray-900 text-sm">
+                          {proposal.title || 'Untitled Proposal'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {proposal.agency || '--'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          statusColors[proposal.status?.toLowerCase()] ||
+                          statusColors.draft
+                        }`}
+                      >
+                        {formatStatus(proposal.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400 flex items-center gap-1.5">
+                      <CalendarDaysIcon className="w-4 h-4" />
+                      {formatDate(proposal.created_at || proposal.date)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

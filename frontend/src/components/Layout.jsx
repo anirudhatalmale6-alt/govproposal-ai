@@ -8,18 +8,40 @@ import {
   Bars3Icon,
   XMarkIcon,
   DocumentTextIcon,
+  FolderOpenIcon,
+  ShieldCheckIcon,
+  ArrowRightStartOnRectangleIcon,
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { label: 'Dashboard', path: '/', icon: HomeIcon },
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
   { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
+  { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
   { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
 ];
+
+const tierColors = {
+  free: 'bg-gray-100 text-gray-600',
+  paid: 'bg-accent/10 text-accent',
+  pro: 'bg-blue/10 text-blue',
+};
 
 export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  const tierLabel = user?.subscription_tier
+    ? user.subscription_tier.charAt(0).toUpperCase() + user.subscription_tier.slice(1)
+    : 'Free';
+  const tierColor = tierColors[user?.subscription_tier?.toLowerCase()] || tierColors.free;
+
+  // Build nav items — include Admin if user is admin
+  const allNavItems = user?.is_admin
+    ? [...navItems, { label: 'Admin', path: '/admin', icon: ShieldCheckIcon }]
+    : navItems;
 
   return (
     <div className="min-h-screen bg-bg">
@@ -52,7 +74,7 @@ export default function Layout() {
 
           {/* Desktop nav links */}
           <nav className="hidden lg:flex items-center gap-1">
-            {navItems.map((item) => {
+            {allNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
@@ -71,6 +93,30 @@ export default function Layout() {
               );
             })}
           </nav>
+
+          {/* User section */}
+          <div className="flex items-center gap-3">
+            {user && (
+              <>
+                <span
+                  className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tierColor}`}
+                >
+                  {tierLabel}
+                </span>
+                <span className="hidden sm:block text-sm text-white/80 max-w-[150px] truncate">
+                  {user.full_name || user.email}
+                </span>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                  title="Logout"
+                >
+                  <ArrowRightStartOnRectangleIcon className="w-4.5 h-4.5" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -91,7 +137,7 @@ export default function Layout() {
           }`}
         >
           <nav className="p-4 space-y-1">
-            {navItems.map((item) => {
+            {allNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
@@ -112,14 +158,30 @@ export default function Layout() {
             })}
           </nav>
 
-          {/* Sidebar footer */}
+          {/* Sidebar footer — user info */}
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <div className="bg-blue/5 rounded-lg p-3">
-              <p className="text-xs font-semibold text-navy mb-1">GovProposal AI</p>
-              <p className="text-xs text-gray-500">
-                AI-powered government proposal generation
-              </p>
-            </div>
+            {user ? (
+              <div className="bg-blue/5 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-navy truncate">
+                    {user.full_name || 'User'}
+                  </p>
+                  <span
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${tierColor}`}
+                  >
+                    {tierLabel}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              </div>
+            ) : (
+              <div className="bg-blue/5 rounded-lg p-3">
+                <p className="text-xs font-semibold text-navy mb-1">GovProposal AI</p>
+                <p className="text-xs text-gray-500">
+                  AI-powered government proposal generation
+                </p>
+              </div>
+            )}
           </div>
         </aside>
 

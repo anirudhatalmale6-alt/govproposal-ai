@@ -9,3 +9,8 @@ python-multipart
 aiofiles
 jinja2
 python-dotenv
+sqlalchemy[asyncio]
+aiosqlite
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.2.*

@@ -1,7 +1,8 @@
 """
-GovProposal AI - FastAPI Backend
+GovProposal AI - FastAPI Backend (SaaS Edition)
 
 Government Proposal AI Generator powered by Google Gemini and SAM.gov API.
+Multi-tenant with user authentication, PostgreSQL-ready database, and admin panel.
 """
 
 import json
@@ -12,10 +13,12 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import (
     VendorProfile,
@@ -25,9 +28,19 @@ from models import (
     ExportRequest,
     AVAILABLE_SECTIONS,
 )
+from database import get_db, create_tables
+from db_models import User, VendorProfileDB, Proposal, Subscription
 from services.ai_service import AIService
 from services.sam_service import SAMService
 from services.export_service import generate_docx, generate_pdf
+from services.auth_service import (
+    get_current_user,
+    get_optional_user,
+    require_admin,
+    hash_password,
+    create_access_token,
+)
+from routes.auth import router as auth_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -41,17 +54,17 @@ logger = logging.getLogger(__name__)
 
 # Ensure data directories exist
 DATA_DIR = Path(__file__).parent / "data"
-VENDOR_PROFILES_DIR = DATA_DIR / "vendor_profiles"
-VENDOR_PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize FastAPI app
 app = FastAPI(
     title="GovProposal AI",
     description=(
         "AI-powered government contract proposal generator. "
-        "Uses Google Gemini for content generation and SAM.gov for opportunity search."
+        "Uses Google Gemini for content generation and SAM.gov for opportunity search. "
+        "Multi-tenant SaaS with user authentication and admin panel."
     ),
-    version="1.0.0",
+    version="2.0.0",
 )
 
 # CORS middleware - allow all origins for development
@@ -63,23 +76,65 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include auth routes
+app.include_router(auth_router)
+
 # Initialize services
 ai_service = AIService()
 sam_service = SAMService()
 
 
 # ============================================================
-# Health Check
+# Startup Event — DB init + default admin user
+# ============================================================
+
+@app.on_event("startup")
+async def on_startup():
+    """Create database tables and seed default admin user on first run."""
+    logger.info("Starting up — creating database tables...")
+    await create_tables()
+
+    # Seed default admin user if it doesn't exist
+    from database import async_session_factory
+
+    async with async_session_factory() as db:
+        try:
+            result = await db.execute(
+                select(User).where(User.email == "admin@govproposal.ai")
+            )
+            admin_user = result.scalar_one_or_none()
+
+            if admin_user is None:
+                admin_user = User(
+                    email="admin@govproposal.ai",
+                    hashed_password=hash_password("admin123"),
+                    full_name="System Administrator",
+                    company_name="GovProposal AI",
+                    is_admin=True,
+                    subscription_tier="paid",
+                )
+                db.add(admin_user)
+                await db.commit()
+                logger.info("Default admin user created: admin@govproposal.ai")
+            else:
+                logger.info("Default admin user already exists.")
+        except Exception as exc:
+            await db.rollback()
+            logger.error("Failed to seed admin user: %s", exc)
+
+
+# ============================================================
+# Health Check (public)
 # ============================================================
 
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
-    return {"message": "GovProposal AI running"}
+    return {"message": "GovProposal AI running", "version": "2.0.0"}
 
 
 # ============================================================
-# SAM.gov Opportunity Search
+# SAM.gov Opportunity Search (public)
 # ============================================================
 
 @app.get("/api/opportunities")
@@ -118,40 +173,68 @@ async def search_opportunities(
 
 
 # ============================================================
-# Vendor Profile Management
+# Vendor Profile Management (authenticated, scoped to user)
 # ============================================================
 
 @app.post("/api/vendor-profile")
-async def save_vendor_profile(profile: VendorProfile):
+async def save_vendor_profile(
+    profile: VendorProfile,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Save a vendor profile to local storage.
+    Save a vendor profile to the database, scoped to the current user.
 
-    Profiles are stored as JSON files in data/vendor_profiles/ keyed by company name.
+    If the user already has a profile with the same company name, it is updated.
+    Otherwise, a new profile is created.
     """
     try:
-        # Sanitize filename
-        safe_name = "".join(
-            c if c.isalnum() or c in (" ", "-", "_") else "_"
-            for c in profile.company_name
-        ).strip()
-
-        if not safe_name:
-            raise HTTPException(
-                status_code=400,
-                detail="Company name is required and must contain valid characters.",
+        # Check if user already has a profile with this company name
+        result = await db.execute(
+            select(VendorProfileDB).where(
+                VendorProfileDB.user_id == current_user.id,
+                VendorProfileDB.company_name == profile.company_name,
             )
+        )
+        existing = result.scalar_one_or_none()
 
-        file_path = VENDOR_PROFILES_DIR / f"{safe_name}.json"
-        profile_data = profile.model_dump()
+        contact_dict = profile.contact_info.model_dump() if profile.contact_info else {}
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(profile_data, f, indent=2, ensure_ascii=False)
+        if existing:
+            # Update existing profile
+            existing.cage_code = profile.cage_code
+            existing.duns_number = profile.duns_number
+            existing.naics_codes = profile.naics_codes
+            existing.capabilities = profile.capabilities
+            existing.past_performance = profile.past_performance
+            existing.socioeconomic_status = profile.socioeconomic_status
+            existing.contact_info = contact_dict
+            db.add(existing)
+            await db.flush()
+            profile_data = existing.to_dict()
+            logger.info("Updated vendor profile: %s (user: %s)", profile.company_name, current_user.email)
+        else:
+            # Create new profile
+            new_profile = VendorProfileDB(
+                user_id=current_user.id,
+                company_name=profile.company_name,
+                cage_code=profile.cage_code,
+                duns_number=profile.duns_number,
+                naics_codes=profile.naics_codes,
+                capabilities=profile.capabilities,
+                past_performance=profile.past_performance,
+                socioeconomic_status=profile.socioeconomic_status,
+                contact_info=contact_dict,
+            )
+            db.add(new_profile)
+            await db.flush()
+            profile_data = new_profile.to_dict()
+            logger.info("Created vendor profile: %s (user: %s)", profile.company_name, current_user.email)
 
-        logger.info("Saved vendor profile: %s", safe_name)
+        # Return in the same format as original API for frontend compatibility
         return {
             "message": f"Vendor profile '{profile.company_name}' saved successfully.",
-            "file": str(file_path.name),
-            "profile": profile_data,
+            "profile": profile.model_dump(),
         }
 
     except HTTPException:
@@ -165,26 +248,39 @@ async def save_vendor_profile(profile: VendorProfile):
 
 
 @app.get("/api/vendor-profiles")
-async def list_vendor_profiles():
+async def list_vendor_profiles(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    List all saved vendor profiles.
-
-    Returns an array of vendor profile objects loaded from local storage.
+    List all vendor profiles belonging to the current user.
     """
     try:
-        profiles = []
-        for file_path in sorted(VENDOR_PROFILES_DIR.glob("*.json")):
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    profile_data = json.load(f)
-                profiles.append(profile_data)
-            except (json.JSONDecodeError, IOError) as exc:
-                logger.warning("Skipping invalid profile file %s: %s", file_path, exc)
-                continue
+        result = await db.execute(
+            select(VendorProfileDB)
+            .where(VendorProfileDB.user_id == current_user.id)
+            .order_by(VendorProfileDB.created_at.desc())
+        )
+        profiles = result.scalars().all()
+
+        # Return in the same format as original API for frontend compatibility
+        profiles_data = []
+        for p in profiles:
+            profiles_data.append({
+                "id": p.id,
+                "company_name": p.company_name,
+                "cage_code": p.cage_code,
+                "duns_number": p.duns_number,
+                "naics_codes": p.naics_codes or [],
+                "capabilities": p.capabilities,
+                "past_performance": p.past_performance,
+                "socioeconomic_status": p.socioeconomic_status,
+                "contact_info": p.contact_info or {},
+            })
 
         return {
-            "count": len(profiles),
-            "profiles": profiles,
+            "count": len(profiles_data),
+            "profiles": profiles_data,
         }
 
     except Exception as exc:
@@ -196,16 +292,21 @@ async def list_vendor_profiles():
 
 
 # ============================================================
-# Proposal Generation
+# Proposal Generation (authenticated)
 # ============================================================
 
 @app.post("/api/generate-proposal", response_model=ProposalResponse)
-async def generate_proposal(request: ProposalRequest):
+async def generate_proposal(
+    request: ProposalRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Generate a government contract proposal using AI.
 
     Takes vendor profile, opportunity details, and desired sections.
     Calls Google Gemini to generate professional proposal content for each section.
+    Saves the generated proposal to the database.
     """
     try:
         # Validate requested sections
@@ -226,10 +327,11 @@ async def generate_proposal(request: ProposalRequest):
             )
 
         logger.info(
-            "Generating proposal for '%s' targeting '%s' (%d sections)",
+            "Generating proposal for '%s' targeting '%s' (%d sections) [user: %s]",
             request.vendor.get("company_name", "Unknown"),
             request.opportunity.get("title", "Unknown"),
             len(valid_sections),
+            current_user.email,
         )
 
         # Generate proposal sections via Gemini AI
@@ -240,15 +342,38 @@ async def generate_proposal(request: ProposalRequest):
         )
 
         # Build response
-        proposal_id = str(uuid.uuid4())[:8]
+        proposal_id = str(uuid.uuid4())
         sections_response = {
             key: ProposalSection(title=val["title"], content=val["content"])
             for key, val in generated_sections.items()
         }
 
+        # Save proposal to database
+        opp_title = request.opportunity.get("title", "Untitled Opportunity")
+        opp_agency = request.opportunity.get("agency", "")
+        opp_desc = request.opportunity.get("description", "")
+
+        db_proposal = Proposal(
+            id=proposal_id,
+            user_id=current_user.id,
+            title=f"Proposal for {opp_title}",
+            opportunity_title=opp_title,
+            opportunity_agency=opp_agency,
+            opportunity_description=opp_desc,
+            sections={
+                key: {"title": val["title"], "content": val["content"]}
+                for key, val in generated_sections.items()
+            },
+            status="completed",
+        )
+        db.add(db_proposal)
+        await db.flush()
+
+        logger.info("Proposal saved to DB: %s (user: %s)", proposal_id, current_user.email)
+
         return ProposalResponse(
             proposal_id=proposal_id,
-            opportunity_title=request.opportunity.get("title", "Untitled Opportunity"),
+            opportunity_title=opp_title,
             vendor_name=request.vendor.get("company_name", "Unknown Vendor"),
             sections=sections_response,
         )
@@ -266,11 +391,96 @@ async def generate_proposal(request: ProposalRequest):
 
 
 # ============================================================
-# Export Endpoints
+# Proposal CRUD (authenticated, scoped to user)
+# ============================================================
+
+@app.get("/api/proposals")
+async def list_proposals(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all proposals belonging to the current user.
+    """
+    result = await db.execute(
+        select(Proposal)
+        .where(Proposal.user_id == current_user.id)
+        .order_by(Proposal.created_at.desc())
+    )
+    proposals = result.scalars().all()
+
+    return {
+        "count": len(proposals),
+        "proposals": [p.to_dict() for p in proposals],
+    }
+
+
+@app.get("/api/proposals/{proposal_id}")
+async def get_proposal(
+    proposal_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get a specific proposal by ID (must belong to the current user).
+    """
+    result = await db.execute(
+        select(Proposal).where(
+            Proposal.id == proposal_id,
+            Proposal.user_id == current_user.id,
+        )
+    )
+    proposal = result.scalar_one_or_none()
+
+    if proposal is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Proposal not found.",
+        )
+
+    return {"proposal": proposal.to_dict()}
+
+
+@app.delete("/api/proposals/{proposal_id}")
+async def delete_proposal(
+    proposal_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a specific proposal by ID (must belong to the current user).
+    """
+    result = await db.execute(
+        select(Proposal).where(
+            Proposal.id == proposal_id,
+            Proposal.user_id == current_user.id,
+        )
+    )
+    proposal = result.scalar_one_or_none()
+
+    if proposal is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Proposal not found.",
+        )
+
+    await db.delete(proposal)
+    await db.flush()
+
+    logger.info("Proposal deleted: %s (user: %s)", proposal_id, current_user.email)
+
+    return {"message": "Proposal deleted successfully."}
+
+
+# ============================================================
+# Export Endpoints (authenticated)
 # ============================================================
 
 @app.post("/api/export/docx")
-async def export_docx(request: ExportRequest):
+async def export_docx(
+    request: ExportRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
     Export proposal sections as a formatted Word document (.docx).
 
@@ -312,7 +522,10 @@ async def export_docx(request: ExportRequest):
 
 
 @app.post("/api/export/pdf")
-async def export_pdf(request: ExportRequest):
+async def export_pdf(
+    request: ExportRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
     Export proposal sections as a formatted PDF document.
 
@@ -351,6 +564,106 @@ async def export_pdf(request: ExportRequest):
             status_code=500,
             detail=f"Failed to export PDF: {exc}",
         )
+
+
+# ============================================================
+# Admin Endpoints (admin only)
+# ============================================================
+
+@app.get("/api/admin/users")
+async def admin_list_users(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all users in the system (admin only).
+    """
+    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    users = result.scalars().all()
+
+    return {
+        "count": len(users),
+        "users": [u.to_dict() for u in users],
+    }
+
+
+@app.get("/api/admin/stats")
+async def admin_stats(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get platform-wide statistics (admin only).
+
+    Returns total users, total proposals, and active subscription count.
+    """
+    # Total users
+    result = await db.execute(select(func.count(User.id)))
+    total_users = result.scalar() or 0
+
+    # Total proposals
+    result = await db.execute(select(func.count(Proposal.id)))
+    total_proposals = result.scalar() or 0
+
+    # Active subscriptions
+    result = await db.execute(
+        select(func.count(Subscription.id)).where(Subscription.status == "active")
+    )
+    active_subscriptions = result.scalar() or 0
+
+    # Users by tier
+    result = await db.execute(
+        select(User.subscription_tier, func.count(User.id)).group_by(User.subscription_tier)
+    )
+    tier_counts = {row[0]: row[1] for row in result.all()}
+
+    return {
+        "total_users": total_users,
+        "total_proposals": total_proposals,
+        "active_subscriptions": active_subscriptions,
+        "users_by_tier": tier_counts,
+    }
+
+
+@app.put("/api/admin/users/{user_id}")
+async def admin_update_user(
+    user_id: str,
+    update: dict,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update a user's admin status or subscription tier (admin only).
+
+    Accepted fields in body: is_admin (bool), subscription_tier (str: "free" or "paid").
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if "is_admin" in update:
+        user.is_admin = bool(update["is_admin"])
+    if "subscription_tier" in update:
+        tier = update["subscription_tier"]
+        if tier not in ("free", "paid"):
+            raise HTTPException(
+                status_code=400,
+                detail="subscription_tier must be 'free' or 'paid'.",
+            )
+        user.subscription_tier = tier
+    if "full_name" in update:
+        user.full_name = update["full_name"]
+    if "company_name" in update:
+        user.company_name = update["company_name"]
+
+    db.add(user)
+    await db.flush()
+
+    logger.info("Admin updated user %s: %s", user_id, update)
+
+    return {"message": "User updated.", "user": user.to_dict()}
 
 
 # ============================================================
