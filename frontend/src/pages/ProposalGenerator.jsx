@@ -11,6 +11,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
+import NaicsCodeSelector from '../components/NaicsCodeSelector';
 
 const proposalSections = [
   { key: 'cover_page', label: 'Cover Page' },
@@ -44,7 +45,7 @@ export default function ProposalGenerator() {
     company_name: '',
     cage_code: '',
     duns_number: '',
-    naics_codes: '',
+    naics_codes: [],
     capabilities: '',
     past_performance: '',
     socioeconomic_status: 'Small Business',
@@ -73,7 +74,15 @@ export default function ProposalGenerator() {
       const saved = localStorage.getItem('vendorProfile');
       if (saved) {
         try {
-          setVendor(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          // Migrate old comma-separated string to array
+          if (typeof parsed.naics_codes === 'string') {
+            parsed.naics_codes = parsed.naics_codes
+              .split(',')
+              .map((c) => c.trim())
+              .filter(Boolean);
+          }
+          setVendor((prev) => ({ ...prev, ...parsed }));
         } catch {
           // ignore
         }
@@ -297,10 +306,12 @@ export default function ProposalGenerator() {
                     {vendor.duns_number}
                   </p>
                 )}
-                {vendor.naics_codes && (
+                {vendor.naics_codes?.length > 0 && (
                   <p>
                     <span className="font-medium text-gray-700">NAICS:</span>{' '}
-                    {vendor.naics_codes}
+                    {Array.isArray(vendor.naics_codes)
+                      ? vendor.naics_codes.join(', ')
+                      : vendor.naics_codes}
                   </p>
                 )}
                 <p>
@@ -367,6 +378,15 @@ export default function ProposalGenerator() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  NAICS Codes
+                </label>
+                <NaicsCodeSelector
+                  selectedCodes={vendor.naics_codes || []}
+                  onChange={(codes) => handleVendorChange('naics_codes', codes)}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">

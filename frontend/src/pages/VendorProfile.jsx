@@ -9,6 +9,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
+import NaicsCodeSelector from '../components/NaicsCodeSelector';
 
 const socioeconomicOptions = [
   'Small Business',
@@ -23,7 +24,7 @@ const initialProfile = {
   company_name: '',
   cage_code: '',
   duns_number: '',
-  naics_codes: '',
+  naics_codes: [],
   capabilities: '',
   past_performance: '',
   socioeconomic_status: 'Small Business',
@@ -44,7 +45,15 @@ export default function VendorProfile() {
     const saved = localStorage.getItem('vendorProfile');
     if (saved) {
       try {
-        setProfile(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Migrate old comma-separated string to array
+        if (typeof parsed.naics_codes === 'string') {
+          parsed.naics_codes = parsed.naics_codes
+            .split(',')
+            .map((c) => c.trim())
+            .filter(Boolean);
+        }
+        setProfile({ ...initialProfile, ...parsed });
       } catch {
         // ignore parse errors
       }
@@ -150,14 +159,14 @@ export default function VendorProfile() {
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                NAICS Codes <span className="text-gray-400 font-normal">(comma-separated)</span>
+                NAICS Codes{' '}
+                <span className="text-gray-400 font-normal">
+                  (select from official 2022 NAICS list)
+                </span>
               </label>
-              <input
-                type="text"
-                value={profile.naics_codes}
-                onChange={(e) => handleChange('naics_codes', e.target.value)}
-                placeholder="e.g., 541512, 541519, 541611"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+              <NaicsCodeSelector
+                selectedCodes={profile.naics_codes || []}
+                onChange={(codes) => handleChange('naics_codes', codes)}
               />
             </div>
             <div>
