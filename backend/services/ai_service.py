@@ -170,17 +170,19 @@ class AIService:
     """Service for generating proposal content using Google Gemini API."""
 
     def __init__(self) -> None:
-        api_key: str = os.getenv("GEMINI_API_KEY", "")
-        if not api_key:
+        self.api_key: str = os.getenv("GEMINI_API_KEY", "")
+        self.demo_mode = not bool(self.api_key)
+        if self.demo_mode:
             logger.warning(
-                "GEMINI_API_KEY not set. AI generation will fail. "
-                "Set GEMINI_API_KEY in your .env file."
+                "GEMINI_API_KEY not set. Running in DEMO mode with template-based content. "
+                "Set GEMINI_API_KEY in .env for real AI generation."
             )
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            system_instruction=SYSTEM_PROMPT,
-        )
+        else:
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel(
+                model_name="gemini-2.0-flash",
+                system_instruction=SYSTEM_PROMPT,
+            )
 
     def generate_section(self, prompt: str) -> str:
         """
@@ -202,6 +204,196 @@ class AIService:
             logger.error("Gemini API error: %s", exc)
             raise RuntimeError(f"AI generation failed: {exc}")
 
+    def _generate_demo_section(self, section_key: str, vendor: Dict, opportunity: Dict) -> str:
+        """Generate realistic demo content for a section without calling the AI API."""
+        company = vendor.get("company_name", "Acme Federal Solutions")
+        opp_title = opportunity.get("title", "Government Services Contract")
+        agency = opportunity.get("agency", "Federal Agency")
+        description = opportunity.get("description", "government services and support")
+        naics = vendor.get("naics_codes", "541512")
+        if isinstance(naics, list):
+            naics = ", ".join(naics) if naics else "541512"
+        capabilities = vendor.get("capabilities", "IT modernization, cloud services, cybersecurity")
+        cage = vendor.get("cage_code", "5ABC1")
+        duns = vendor.get("duns_number", "123456789")
+        socio = vendor.get("socioeconomic_status", "Small Business")
+
+        templates = {
+            "cover_page": (
+                f"PROPOSAL\n\n"
+                f"Title: {opp_title}\n"
+                f"Submitted to: {agency}\n"
+                f"Submitted by: {company}\n"
+                f"CAGE Code: {cage}\n"
+                f"DUNS/UEI: {duns}\n"
+                f"NAICS: {naics}\n"
+                f"Date: March 2026\n\n"
+                f"Point of Contact:\n"
+                f"{company}\n"
+                f"Federal Contracting Division\n\n"
+                f"This proposal is submitted in response to the above-referenced solicitation "
+                f"and represents {company}'s comprehensive approach to meeting all requirements."
+            ),
+            "executive_summary": (
+                f"Executive Summary\n\n"
+                f"{company} is pleased to submit this proposal in response to {agency}'s requirement "
+                f"for {opp_title}. Our team brings extensive experience in {capabilities}, "
+                f"positioning us as an ideal partner for this critical initiative.\n\n"
+                f"Our Proposed Solution:\n"
+                f"{company} proposes a comprehensive, results-driven approach that leverages our "
+                f"proven methodologies and experienced workforce. Our solution addresses every aspect "
+                f"of the stated requirements while delivering measurable value through:\n\n"
+                f"1. Deep Domain Expertise — Over a decade of experience delivering similar solutions "
+                f"to federal agencies, with a 98% on-time delivery rate.\n\n"
+                f"2. Innovative Technology — We employ cutting-edge tools and frameworks that enhance "
+                f"efficiency, reduce costs, and accelerate delivery timelines.\n\n"
+                f"3. Proven Methodology — Our ISO-certified processes ensure quality, compliance, "
+                f"and continuous improvement throughout the period of performance.\n\n"
+                f"4. Dedicated Team — We commit top-tier professionals with relevant certifications "
+                f"and clearances, ensuring seamless execution from day one.\n\n"
+                f"{company} is committed to delivering exceptional results that exceed expectations "
+                f"while maintaining full compliance with all applicable regulations and standards."
+            ),
+            "vendor_profile": (
+                f"Company Profile\n\n"
+                f"{company} is a dynamic, mission-focused organization specializing in {capabilities}. "
+                f"Founded with the vision of delivering exceptional services to government agencies, "
+                f"we have grown into a trusted partner for federal, state, and local clients.\n\n"
+                f"Organization Overview:\n"
+                f"- CAGE Code: {cage}\n"
+                f"- DUNS/UEI: {duns}\n"
+                f"- NAICS Codes: {naics}\n"
+                f"- Socioeconomic Status: {socio}\n"
+                f"- Registered and active in SAM.gov\n\n"
+                f"Core Business Areas:\n"
+                f"Our core competencies include {capabilities}. We maintain a robust quality "
+                f"management system and invest heavily in professional development to ensure "
+                f"our team stays at the forefront of industry best practices.\n\n"
+                f"Corporate Resources:\n"
+                f"{company} maintains strong financial health, demonstrated by consistent year-over-year "
+                f"revenue growth and a healthy balance sheet. Our corporate infrastructure supports "
+                f"rapid scaling to meet contract requirements."
+            ),
+            "socioeconomic_status": (
+                f"Socioeconomic Status\n\n"
+                f"{company} is classified as a {socio} under SBA size standards for NAICS {naics}. "
+                f"We are committed to supporting the government's small business utilization goals "
+                f"and economic development objectives.\n\n"
+                f"Certifications and Designations:\n"
+                f"- {socio} designation confirmed and active\n"
+                f"- SBA size standard compliant for applicable NAICS codes\n"
+                f"- Active SAM.gov registration with current representations and certifications\n\n"
+                f"Small Business Subcontracting:\n"
+                f"{company} maintains a robust small business subcontracting plan that maximizes "
+                f"opportunities for small, disadvantaged, women-owned, HUBZone, and "
+                f"service-disabled veteran-owned small businesses."
+            ),
+            "capability_statement": (
+                f"Capability Statement\n\n"
+                f"Core Competencies:\n"
+                f"{company} delivers excellence across our key capability areas: {capabilities}. "
+                f"Each competency is backed by certified professionals, proven processes, and "
+                f"successful past performance.\n\n"
+                f"Differentiators:\n"
+                f"1. Agile Delivery — We employ agile and DevSecOps methodologies that accelerate "
+                f"delivery while maintaining quality and security.\n"
+                f"2. Cleared Workforce — Our team maintains active security clearances, enabling "
+                f"rapid onboarding and seamless integration.\n"
+                f"3. Innovation Focus — We invest 10% of revenue in R&D to stay ahead of "
+                f"emerging technologies and threats.\n\n"
+                f"Tools & Technologies:\n"
+                f"Our technology stack includes industry-leading platforms and tools, "
+                f"all configured to meet federal security and compliance requirements. "
+                f"We maintain FedRAMP-ready infrastructure and NIST-compliant processes."
+            ),
+            "past_performance": (
+                f"Past Performance\n\n"
+                f"{company} has a proven track record of successful contract execution. "
+                f"Below are representative past performance references demonstrating our "
+                f"capability to deliver services similar to {opp_title}.\n\n"
+                f"Reference 1: Enterprise IT Modernization\n"
+                f"- Agency: Department of Defense\n"
+                f"- Contract Value: $4.2M\n"
+                f"- Period: 2023-2025\n"
+                f"- Scope: End-to-end IT modernization including cloud migration, "
+                f"application development, and cybersecurity implementation\n"
+                f"- Result: Delivered on-time and under budget; CPARS rating: Exceptional\n\n"
+                f"Reference 2: Cybersecurity Operations Support\n"
+                f"- Agency: Department of Homeland Security\n"
+                f"- Contract Value: $2.8M\n"
+                f"- Period: 2022-2024\n"
+                f"- Scope: 24/7 SOC operations, threat intelligence, incident response\n"
+                f"- Result: 99.99% uptime; zero critical security breaches; CPARS: Very Good\n\n"
+                f"Reference 3: Cloud Infrastructure Services\n"
+                f"- Agency: General Services Administration\n"
+                f"- Contract Value: $1.5M\n"
+                f"- Period: 2024-2025\n"
+                f"- Scope: AWS GovCloud migration and managed services\n"
+                f"- Result: 40% cost reduction achieved; CPARS: Exceptional"
+            ),
+            "technical_approach": (
+                f"Technical Approach\n\n"
+                f"1. Understanding of Requirements\n"
+                f"{company} thoroughly understands {agency}'s requirements for {opp_title}. "
+                f"Our analysis of the solicitation reveals key focus areas that align directly "
+                f"with our proven capabilities in {capabilities}.\n\n"
+                f"2. Proposed Solution\n"
+                f"We propose a phased approach that ensures rapid value delivery while "
+                f"minimizing risk:\n\n"
+                f"Phase 1 - Discovery & Planning (Weeks 1-4): Comprehensive requirements analysis, "
+                f"stakeholder engagement, and detailed project planning.\n\n"
+                f"Phase 2 - Implementation (Weeks 5-16): Core solution development and deployment "
+                f"using agile sprints with bi-weekly deliverables.\n\n"
+                f"Phase 3 - Optimization (Weeks 17-20): Performance tuning, user training, "
+                f"and knowledge transfer.\n\n"
+                f"3. Risk Management\n"
+                f"Our proactive risk management framework identifies, assesses, and mitigates "
+                f"risks throughout the project lifecycle. Key risk areas and mitigations are "
+                f"documented in our Risk Register and reviewed weekly.\n\n"
+                f"4. Quality Assurance\n"
+                f"All deliverables undergo rigorous QA/QC processes aligned with ISO 9001 "
+                f"standards, ensuring consistent quality and compliance."
+            ),
+            "staffing_plan": (
+                f"Staffing Plan\n\n"
+                f"1. Key Personnel\n"
+                f"{company} commits the following key personnel to this engagement:\n\n"
+                f"Program Manager — 15+ years of federal program management experience, "
+                f"PMP certified, with proven expertise managing contracts of similar size and scope.\n\n"
+                f"Technical Lead — 12+ years in {capabilities}, with relevant certifications "
+                f"and hands-on experience delivering solutions to federal agencies.\n\n"
+                f"Subject Matter Expert — Deep domain expertise in the functional area, "
+                f"with a track record of successful implementations.\n\n"
+                f"Quality Assurance Lead — Certified CMMI and ISO auditor, responsible for "
+                f"ensuring all deliverables meet the highest quality standards.\n\n"
+                f"2. Staffing Approach\n"
+                f"All staff assigned to this contract will possess the required security clearances "
+                f"and certifications. Our talent acquisition team maintains a pipeline of pre-vetted "
+                f"candidates to support surge requirements.\n\n"
+                f"3. Training & Development\n"
+                f"We invest in continuous professional development, with mandatory 40+ hours of "
+                f"annual training per employee to keep skills current."
+            ),
+            "compliance_checklist": (
+                f"Compliance Checklist\n\n"
+                f"{company} confirms compliance with all applicable requirements:\n\n"
+                f"[x] FAR/DFARS Compliance — All applicable clauses acknowledged and incorporated\n"
+                f"[x] Section 508 Accessibility — Full compliance with accessibility standards\n"
+                f"[x] Cybersecurity (NIST 800-171/FISMA) — Compliant security controls implemented\n"
+                f"[x] Data Protection & Privacy — PII handling procedures in place per NIST guidelines\n"
+                f"[x] Equal Employment Opportunity — Full EEO compliance certified\n"
+                f"[x] Insurance & Bonding — Adequate coverage maintained\n"
+                f"[x] Conflict of Interest — No organizational conflicts of interest identified\n"
+                f"[x] SAM.gov Registration — Active and current\n"
+                f"[x] Representations & Certifications — All current and accurate\n"
+                f"[x] Quality Management System — ISO 9001 certified processes\n\n"
+                f"{company} maintains a dedicated compliance team that monitors regulatory changes "
+                f"and ensures ongoing adherence to all federal acquisition requirements."
+            ),
+        }
+
+        return templates.get(section_key, f"[Demo content for {section_key}]")
+
     def generate_proposal(
         self,
         vendor: Dict,
@@ -210,6 +402,9 @@ class AIService:
     ) -> Dict[str, Dict[str, str]]:
         """
         Generate a complete government proposal with multiple sections.
+
+        Uses Gemini AI when API key is available, otherwise generates
+        realistic demo content using templates.
 
         Args:
             vendor: Vendor profile data dict.
@@ -222,11 +417,25 @@ class AIService:
         if sections is None:
             sections = list(SECTION_PROMPTS.keys())
 
-        # Build context block that will be prepended to every section prompt
+        results: Dict[str, Dict[str, str]] = {}
+
+        if self.demo_mode:
+            logger.info("Generating proposal in DEMO mode (no API key)")
+            for section_key in sections:
+                if section_key not in SECTION_PROMPTS:
+                    logger.warning("Unknown section requested: %s (skipping)", section_key)
+                    continue
+                content = self._generate_demo_section(section_key, vendor, opportunity)
+                results[section_key] = {
+                    "title": SECTION_TITLES.get(section_key, section_key.replace("_", " ").title()),
+                    "content": content,
+                }
+                logger.info("Generated demo section: %s", section_key)
+            return results
+
+        # Real AI generation with Gemini
         vendor_context = self._build_vendor_context(vendor)
         opportunity_context = self._build_opportunity_context(opportunity)
-
-        results: Dict[str, Dict[str, str]] = {}
 
         for section_key in sections:
             if section_key not in SECTION_PROMPTS:
