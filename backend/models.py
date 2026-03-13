@@ -62,7 +62,14 @@ AVAILABLE_SECTIONS: List[str] = [
     "capability_statement",
     "past_performance",
     "technical_approach",
+    "management_approach",
     "staffing_plan",
+    "key_personnel",
+    "cost_price_proposal",
+    "quality_assurance",
+    "risk_mitigation",
+    "transition_plan",
+    "subcontracting_plan",
     "compliance_checklist",
 ]
 

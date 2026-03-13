@@ -150,6 +150,104 @@ SECTION_PROMPTS: Dict[str, str] = {
         "Format as a structured checklist with brief compliance statements "
         "for each item. Demonstrate thorough regulatory awareness."
     ),
+    "management_approach": (
+        "Write a Management Approach section for a government contract proposal.\n\n"
+        "Include:\n"
+        "1. Program Management Structure - organizational chart, reporting chains\n"
+        "2. Communication Plan - stakeholder meetings, status reports, escalation paths\n"
+        "3. Project Management Methodology - Agile, Waterfall, or hybrid approach\n"
+        "4. Performance Monitoring - KPIs, metrics, and reporting frequency\n"
+        "5. Change Management - process for handling scope changes and modifications\n"
+        "6. Contract Administration - invoicing, deliverable tracking, compliance monitoring\n"
+        "7. Continuous Improvement - lessons learned, process optimization\n\n"
+        "Demonstrate a mature, proven management framework that ensures "
+        "on-time, on-budget delivery with full transparency."
+    ),
+    "key_personnel": (
+        "Write a Key Personnel / Resumes section for a government contract proposal.\n\n"
+        "Provide detailed profiles for 3-5 key personnel:\n"
+        "For each person include:\n"
+        "- Name and proposed role/title\n"
+        "- Years of relevant experience\n"
+        "- Education (degrees, institutions)\n"
+        "- Professional certifications (PMP, CISSP, etc.)\n"
+        "- Security clearance level\n"
+        "- 3 relevant project summaries with agency, scope, and results\n"
+        "- Skills and specializations\n\n"
+        "Demonstrate that key personnel meet or exceed solicitation requirements "
+        "and have directly relevant federal contracting experience."
+    ),
+    "cost_price_proposal": (
+        "Write a Cost/Price Proposal section for a government contract proposal.\n\n"
+        "Include:\n"
+        "1. Pricing Summary - total proposed price with breakdown by CLIN\n"
+        "2. Labor Categories - list of labor categories with rates\n"
+        "3. Labor Hours Estimate - estimated hours by category and task\n"
+        "4. Other Direct Costs (ODCs) - travel, materials, licenses, etc.\n"
+        "5. Subcontractor Costs (if applicable)\n"
+        "6. Basis of Estimate - methodology used to develop pricing\n"
+        "7. Rate Reasonableness - comparison to GSA rates or market rates\n"
+        "8. Cost Assumptions and Exclusions\n\n"
+        "Present pricing that is competitive yet realistic. "
+        "Demonstrate cost consciousness and value for the government."
+    ),
+    "quality_assurance": (
+        "Write a Quality Assurance/Quality Control Plan section.\n\n"
+        "Include:\n"
+        "1. QA/QC Philosophy and Standards - ISO 9001, CMMI, or equivalent\n"
+        "2. Quality Control Processes - inspection, testing, review procedures\n"
+        "3. Deliverable Review Cycle - draft, review, revision, final approval\n"
+        "4. Defect Tracking and Corrective Action - how issues are identified and resolved\n"
+        "5. Performance Metrics - quality KPIs and acceptance criteria\n"
+        "6. Customer Satisfaction Monitoring - feedback mechanisms and surveys\n"
+        "7. Continuous Improvement - how lessons learned drive quality improvements\n\n"
+        "Demonstrate a mature quality system that ensures all deliverables "
+        "meet or exceed government requirements."
+    ),
+    "risk_mitigation": (
+        "Write a Risk Mitigation Plan section for a government contract proposal.\n\n"
+        "Include:\n"
+        "1. Risk Management Framework - methodology for identifying, assessing, "
+        "and mitigating risks\n"
+        "2. Risk Register - identify 5-7 key risks with:\n"
+        "   - Risk description\n"
+        "   - Probability (High/Medium/Low)\n"
+        "   - Impact (High/Medium/Low)\n"
+        "   - Mitigation strategy\n"
+        "   - Contingency plan\n"
+        "3. Risk Categories - technical, schedule, cost, and performance risks\n"
+        "4. Risk Monitoring and Reporting - how risks are tracked and communicated\n"
+        "5. Escalation Procedures - when and how to escalate critical risks\n\n"
+        "Show proactive risk management that protects the government's interests."
+    ),
+    "transition_plan": (
+        "Write a Transition/Phase-In Plan section for a government contract proposal.\n\n"
+        "Include:\n"
+        "1. Transition Approach - overall strategy for contract startup\n"
+        "2. Phase-In Timeline - week-by-week activities for the first 30-90 days\n"
+        "3. Knowledge Transfer - how to capture institutional knowledge from incumbent\n"
+        "4. Personnel Onboarding - hiring, clearances, badging, training\n"
+        "5. Systems and Tools Migration - IT systems, access, credentials\n"
+        "6. Continuity of Operations - ensuring no service disruption during transition\n"
+        "7. Phase-Out Plan - approach for orderly closeout at contract end\n\n"
+        "Demonstrate ability to assume full operations quickly with minimal disruption."
+    ),
+    "subcontracting_plan": (
+        "Write a Small Business Subcontracting Plan section.\n\n"
+        "Include:\n"
+        "1. Subcontracting Goals - percentage goals for each socioeconomic category:\n"
+        "   - Small Business (SB)\n"
+        "   - Small Disadvantaged Business (SDB)\n"
+        "   - Women-Owned Small Business (WOSB)\n"
+        "   - HUBZone Small Business\n"
+        "   - Service-Disabled Veteran-Owned SB (SDVOSB)\n"
+        "   - Veteran-Owned Small Business (VOSB)\n"
+        "2. Subcontractor Identification - named or planned subcontractors\n"
+        "3. Good Faith Effort - outreach and mentoring activities\n"
+        "4. Reporting and Compliance - ISR/SSR reporting commitments\n"
+        "5. Subcontractor Management - oversight, performance monitoring\n\n"
+        "Per FAR 52.219-9, demonstrate commitment to maximizing small business participation."
+    ),
 }
 
 # Human-readable section titles
@@ -161,7 +259,14 @@ SECTION_TITLES: Dict[str, str] = {
     "capability_statement": "Capability Statement",
     "past_performance": "Past Performance",
     "technical_approach": "Technical Approach",
+    "management_approach": "Management Approach",
     "staffing_plan": "Staffing Plan",
+    "key_personnel": "Key Personnel / Resumes",
+    "cost_price_proposal": "Cost / Price Proposal",
+    "quality_assurance": "Quality Assurance Plan",
+    "risk_mitigation": "Risk Mitigation Plan",
+    "transition_plan": "Transition / Phase-In Plan",
+    "subcontracting_plan": "Small Business Subcontracting Plan",
     "compliance_checklist": "Compliance Checklist",
 }
 
@@ -390,6 +495,180 @@ class AIService:
                 f"{company} maintains a dedicated compliance team that monitors regulatory changes "
                 f"and ensures ongoing adherence to all federal acquisition requirements."
             ),
+            "management_approach": (
+                f"Management Approach\n\n"
+                f"1. Program Management Structure\n"
+                f"{company} will establish a dedicated Program Management Office (PMO) led by an "
+                f"experienced Program Manager who reports directly to the Contracting Officer's "
+                f"Representative (COR). Our organizational structure ensures clear lines of authority, "
+                f"accountability, and rapid decision-making.\n\n"
+                f"2. Communication Plan\n"
+                f"- Weekly Status Reports delivered every Friday by 5:00 PM\n"
+                f"- Bi-weekly Program Reviews with government stakeholders\n"
+                f"- Monthly Executive Briefings for senior leadership\n"
+                f"- 24-hour response time for all government inquiries\n"
+                f"- Escalation path: Task Lead → PM → VP of Operations → CEO\n\n"
+                f"3. Project Management Methodology\n"
+                f"{company} employs a hybrid Agile/PMBOK methodology tailored to federal requirements. "
+                f"We use 2-week sprints for iterative delivery while maintaining the documentation "
+                f"and traceability required for government contracts.\n\n"
+                f"4. Performance Monitoring\n"
+                f"Key Performance Indicators tracked monthly:\n"
+                f"- Schedule Performance Index (SPI) target: ≥ 0.95\n"
+                f"- Cost Performance Index (CPI) target: ≥ 0.95\n"
+                f"- Deliverable Acceptance Rate target: ≥ 98%\n"
+                f"- Customer Satisfaction Score target: ≥ 4.5/5.0"
+            ),
+            "key_personnel": (
+                f"Key Personnel / Resumes\n\n"
+                f"1. Program Manager — John A. Mitchell, PMP\n"
+                f"Experience: 15 years in federal program management\n"
+                f"Education: MBA, George Washington University; BS Computer Science, Virginia Tech\n"
+                f"Certifications: PMP, ITIL v4, SAFe Agilist\n"
+                f"Clearance: Secret\n"
+                f"Relevant Projects:\n"
+                f"- Led $8M DoD IT modernization program (2022-2025) — Delivered on-time\n"
+                f"- Managed $4.2M DHS cybersecurity operations contract — CPARS: Exceptional\n"
+                f"- Directed $3.1M GSA cloud migration — 35% cost savings achieved\n\n"
+                f"2. Technical Lead — Sarah K. Rodriguez\n"
+                f"Experience: 12 years in {capabilities}\n"
+                f"Education: MS Information Systems, Johns Hopkins; BS Engineering, Penn State\n"
+                f"Certifications: CISSP, AWS Solutions Architect, Azure Administrator\n"
+                f"Clearance: Top Secret\n"
+                f"Relevant Projects:\n"
+                f"- Architect for DoD enterprise cloud platform — 99.99% uptime\n"
+                f"- Led DHS zero-trust implementation — Reduced incidents by 60%\n"
+                f"- Designed VA data analytics pipeline — Processing 10M+ records daily\n\n"
+                f"3. Quality Assurance Lead — David Chen, CSQA\n"
+                f"Experience: 10 years in quality assurance and testing\n"
+                f"Education: MS Software Engineering, Carnegie Mellon\n"
+                f"Certifications: CSQA, CMMI Appraiser, ISO 9001 Lead Auditor\n"
+                f"Clearance: Secret\n"
+                f"Relevant Projects:\n"
+                f"- QA lead for DoD Agile development program — Zero defects in production\n"
+                f"- Established CMMI Level 3 processes for federal contractor\n"
+                f"- Led Section 508 compliance testing for 15+ government applications"
+            ),
+            "cost_price_proposal": (
+                f"Cost / Price Proposal\n\n"
+                f"1. Pricing Summary\n"
+                f"{company} proposes competitive, fair and reasonable pricing for {opp_title}. "
+                f"Our rates are benchmarked against GSA Schedule rates and reflect our commitment "
+                f"to delivering maximum value to {agency}.\n\n"
+                f"2. Labor Categories and Rates\n"
+                f"Program Manager ............ $165/hour\n"
+                f"Technical Lead ............. $155/hour\n"
+                f"Senior Engineer/Analyst .... $140/hour\n"
+                f"Mid-Level Engineer/Analyst . $115/hour\n"
+                f"Junior Engineer/Analyst .... $85/hour\n"
+                f"Quality Assurance Lead ..... $130/hour\n"
+                f"Administrative Support ..... $65/hour\n\n"
+                f"3. Other Direct Costs (ODCs)\n"
+                f"- Travel: Estimated $25,000 annually (CONUS, per JTR)\n"
+                f"- Software Licenses: $15,000 annually\n"
+                f"- Training: $10,000 annually\n\n"
+                f"4. Basis of Estimate\n"
+                f"Labor hours are estimated based on similar past performance contracts. "
+                f"Rates are fully burdened and include fringe benefits, overhead, G&A, and profit. "
+                f"All rates are compliant with applicable Service Contract Labor Standards."
+            ),
+            "quality_assurance": (
+                f"Quality Assurance Plan\n\n"
+                f"1. QA/QC Philosophy\n"
+                f"{company} maintains an ISO 9001:2015 certified Quality Management System (QMS) "
+                f"that ensures consistent, high-quality deliverables across all contracts.\n\n"
+                f"2. Quality Control Processes\n"
+                f"- Peer Review: All deliverables undergo peer review before submission\n"
+                f"- Technical Review: Senior staff validate technical accuracy and completeness\n"
+                f"- Compliance Review: Dedicated QA team verifies regulatory compliance\n"
+                f"- Final Approval: PM certifies deliverable quality before government submission\n\n"
+                f"3. Deliverable Review Cycle\n"
+                f"Draft Deliverable → Internal QC Review (2 days) → Revisions → "
+                f"Government Draft Review → Incorporate Feedback → Final Deliverable\n\n"
+                f"4. Performance Metrics\n"
+                f"- Deliverable acceptance rate: Target ≥ 98% first submission\n"
+                f"- Defect density: Target < 0.5 defects per deliverable\n"
+                f"- Corrective action closure: Within 5 business days\n"
+                f"- Customer satisfaction: Target ≥ 4.5/5.0\n\n"
+                f"5. Continuous Improvement\n"
+                f"Quarterly lessons learned sessions drive process improvements. "
+                f"Root cause analysis is conducted for all quality escapes."
+            ),
+            "risk_mitigation": (
+                f"Risk Mitigation Plan\n\n"
+                f"1. Risk Management Framework\n"
+                f"{company} employs a proactive risk management approach aligned with "
+                f"PMI PMBOK and NIST risk management frameworks.\n\n"
+                f"2. Risk Register\n\n"
+                f"Risk: Key Personnel Turnover\n"
+                f"Probability: Medium | Impact: High\n"
+                f"Mitigation: Maintain bench of pre-cleared backup personnel; cross-train team\n"
+                f"Contingency: Deploy backup within 5 business days\n\n"
+                f"Risk: Schedule Delays Due to Requirements Changes\n"
+                f"Probability: Medium | Impact: Medium\n"
+                f"Mitigation: Agile methodology with sprint-based re-prioritization\n"
+                f"Contingency: Surge staffing available within 2 weeks\n\n"
+                f"Risk: Technology Obsolescence\n"
+                f"Probability: Low | Impact: High\n"
+                f"Mitigation: Continuous technology monitoring; modular architecture\n"
+                f"Contingency: Technology refresh plan with minimal disruption\n\n"
+                f"Risk: Security Breach or Data Loss\n"
+                f"Probability: Low | Impact: Critical\n"
+                f"Mitigation: NIST 800-171 controls; continuous monitoring; encryption at rest/transit\n"
+                f"Contingency: Incident response plan with 1-hour notification to government\n\n"
+                f"Risk: Subcontractor Performance Issues\n"
+                f"Probability: Low | Impact: Medium\n"
+                f"Mitigation: Rigorous subcontractor vetting; monthly performance reviews\n"
+                f"Contingency: Pre-identified alternate subcontractors\n\n"
+                f"3. Risk Monitoring\n"
+                f"Risks are reviewed weekly at PMO meetings and reported monthly to the COR."
+            ),
+            "transition_plan": (
+                f"Transition / Phase-In Plan\n\n"
+                f"1. Transition Approach\n"
+                f"{company} will execute a disciplined 30-day transition plan that ensures "
+                f"zero disruption to ongoing operations while rapidly assuming full contract responsibilities.\n\n"
+                f"2. Phase-In Timeline\n"
+                f"Week 1: Contract kick-off, key personnel onboarding, access requests\n"
+                f"Week 2: Knowledge transfer sessions with incumbent/government; systems access\n"
+                f"Week 3: Shadow operations — our team works alongside existing staff\n"
+                f"Week 4: Full operational capability; incumbent handoff complete\n\n"
+                f"3. Knowledge Transfer\n"
+                f"- Structured KT sessions with incumbent staff (if applicable)\n"
+                f"- Documentation review and repository transfer\n"
+                f"- Process mapping and workflow documentation\n"
+                f"- Tool and system access provisioning\n\n"
+                f"4. Personnel Onboarding\n"
+                f"- All key personnel identified and committed prior to contract start\n"
+                f"- Security clearance processing initiated upon award notification\n"
+                f"- Building access and CAC/PIV card requests submitted Day 1\n"
+                f"- Role-specific training completed within first 2 weeks\n\n"
+                f"5. Continuity of Operations\n"
+                f"{company} guarantees no service interruption during transition. "
+                f"Our experienced transition team has successfully executed 10+ federal contract transitions."
+            ),
+            "subcontracting_plan": (
+                f"Small Business Subcontracting Plan\n\n"
+                f"Per FAR 52.219-9, {company} commits to the following small business subcontracting goals:\n\n"
+                f"Subcontracting Goals (% of total subcontract value):\n"
+                f"- Small Business (SB): 40%\n"
+                f"- Small Disadvantaged Business (SDB): 10%\n"
+                f"- Women-Owned Small Business (WOSB): 8%\n"
+                f"- HUBZone Small Business: 5%\n"
+                f"- Service-Disabled Veteran-Owned SB (SDVOSB): 5%\n"
+                f"- Veteran-Owned Small Business (VOSB): 3%\n\n"
+                f"Good Faith Efforts:\n"
+                f"- Active outreach through SBA's SubNet and Dynamic Small Business Search\n"
+                f"- Participation in small business matchmaking events and procurement conferences\n"
+                f"- Mentor-protege relationships with developing small businesses\n"
+                f"- Unbundling of requirements to maximize small business participation\n\n"
+                f"Reporting:\n"
+                f"- Individual Subcontracting Reports (ISR) submitted semi-annually via eSRS\n"
+                f"- Summary Subcontracting Reports (SSR) submitted annually\n"
+                f"- Internal quarterly reviews of subcontracting goal achievement\n\n"
+                f"{company} has a proven track record of exceeding small business subcontracting goals "
+                f"and is committed to maximizing opportunities for small businesses."
+            ),
         }
 
         return templates.get(section_key, f"[Demo content for {section_key}]")
@@ -493,11 +772,23 @@ class AIService:
             lines.append(f"CAGE Code: {vendor['cage_code']}")
         if vendor.get("duns_number"):
             lines.append(f"DUNS/UEI Number: {vendor['duns_number']}")
+        if vendor.get("ein_tin"):
+            lines.append(f"EIN/TIN: {vendor['ein_tin']}")
         if vendor.get("naics_codes"):
             codes = vendor["naics_codes"]
             if isinstance(codes, list):
                 codes = ", ".join(codes)
             lines.append(f"NAICS Codes: {codes}")
+        if vendor.get("organizational_type"):
+            lines.append(f"Organization Type: {vendor['organizational_type']}")
+        if vendor.get("state_of_incorporation"):
+            lines.append(f"State of Incorporation: {vendor['state_of_incorporation']}")
+        if vendor.get("years_in_business"):
+            lines.append(f"Years in Business: {vendor['years_in_business']}")
+        if vendor.get("number_of_employees"):
+            lines.append(f"Number of Employees: {vendor['number_of_employees']}")
+        if vendor.get("annual_revenue"):
+            lines.append(f"Annual Revenue: {vendor['annual_revenue']}")
 
         lines.append(f"Capabilities: {vendor.get('capabilities', 'Not specified')}")
         lines.append(f"Past Performance: {vendor.get('past_performance', 'Not specified')}")
@@ -505,12 +796,37 @@ class AIService:
             f"Socioeconomic Status: {vendor.get('socioeconomic_status', 'Not specified')}"
         )
 
+        if vendor.get("sam_registration_status"):
+            lines.append(f"SAM.gov Status: {vendor['sam_registration_status']}")
+        if vendor.get("security_clearance_level"):
+            lines.append(f"Facility Clearance: {vendor['security_clearance_level']}")
+        if vendor.get("certifications"):
+            certs = vendor["certifications"]
+            if isinstance(certs, list):
+                certs = ", ".join(certs)
+            lines.append(f"Certifications: {certs}")
+        if vendor.get("contract_vehicles"):
+            cvs = vendor["contract_vehicles"]
+            if isinstance(cvs, list):
+                cvs = ", ".join(cvs)
+            lines.append(f"Contract Vehicles: {cvs}")
+
+        # Support both flat and nested contact info
         contact = vendor.get("contact_info", {})
         if contact:
             lines.append(f"Contact Name: {contact.get('name', 'N/A')}")
             lines.append(f"Contact Email: {contact.get('email', 'N/A')}")
             lines.append(f"Contact Phone: {contact.get('phone', 'N/A')}")
             lines.append(f"Address: {contact.get('address', 'N/A')}")
+        else:
+            if vendor.get("contact_name"):
+                lines.append(f"Contact Name: {vendor['contact_name']}")
+            if vendor.get("contact_email"):
+                lines.append(f"Contact Email: {vendor['contact_email']}")
+            if vendor.get("contact_phone"):
+                lines.append(f"Contact Phone: {vendor['contact_phone']}")
+            if vendor.get("contact_address"):
+                lines.append(f"Address: {vendor['contact_address']}")
 
         return "\n".join(lines)
 
@@ -519,10 +835,30 @@ class AIService:
         """Format opportunity data into a readable context string."""
         lines = []
         lines.append(f"Opportunity Title: {opportunity.get('title', 'N/A')}")
+
+        if opportunity.get("solicitation_number"):
+            lines.append(f"Solicitation Number: {opportunity['solicitation_number']}")
         lines.append(f"Agency: {opportunity.get('agency', 'N/A')}")
+        if opportunity.get("contracting_office"):
+            lines.append(f"Contracting Office: {opportunity['contracting_office']}")
+        if opportunity.get("set_aside_type"):
+            lines.append(f"Set-Aside Type: {opportunity['set_aside_type']}")
+        if opportunity.get("contract_type"):
+            lines.append(f"Contract Type: {opportunity['contract_type']}")
+        if opportunity.get("naics_code"):
+            lines.append(f"NAICS Code: {opportunity['naics_code']}")
+        if opportunity.get("place_of_performance"):
+            lines.append(f"Place of Performance: {opportunity['place_of_performance']}")
+        if opportunity.get("period_of_performance"):
+            lines.append(f"Period of Performance: {opportunity['period_of_performance']}")
+        if opportunity.get("estimated_value"):
+            lines.append(f"Estimated Value: {opportunity['estimated_value']}")
+
         lines.append(f"Description: {opportunity.get('description', 'Not provided')}")
         lines.append(f"Requirements: {opportunity.get('requirements', 'Not provided')}")
 
+        if opportunity.get("evaluation_criteria"):
+            lines.append(f"Evaluation Criteria: {opportunity['evaluation_criteria']}")
         if opportunity.get("notice_id"):
             lines.append(f"Notice/Solicitation ID: {opportunity['notice_id']}")
         if opportunity.get("due_date"):

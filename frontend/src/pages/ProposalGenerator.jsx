@@ -13,6 +13,26 @@ import {
 import api from '../services/api';
 import NaicsCodeSelector from '../components/NaicsCodeSelector';
 
+const setAsideOptions = [
+  'Full & Open Competition',
+  'Total Small Business Set-Aside',
+  '8(a) Competitive',
+  '8(a) Sole Source',
+  'HUBZone Set-Aside',
+  'SDVOSB Set-Aside',
+  'WOSB Set-Aside',
+  'EDWOSB Set-Aside',
+];
+
+const contractTypeOptions = [
+  'Firm-Fixed-Price (FFP)',
+  'Time-and-Materials (T&M)',
+  'Labor-Hour (LH)',
+  'Cost-Plus-Fixed-Fee (CPFF)',
+  'Cost-Plus-Incentive-Fee (CPIF)',
+  'IDIQ',
+];
+
 const proposalSections = [
   { key: 'cover_page', label: 'Cover Page' },
   { key: 'executive_summary', label: 'Executive Summary' },
@@ -21,7 +41,14 @@ const proposalSections = [
   { key: 'capability_statement', label: 'Capability Statement' },
   { key: 'past_performance', label: 'Past Performance' },
   { key: 'technical_approach', label: 'Technical Approach' },
+  { key: 'management_approach', label: 'Management Approach' },
   { key: 'staffing_plan', label: 'Staffing Plan' },
+  { key: 'key_personnel', label: 'Key Personnel / Resumes' },
+  { key: 'cost_price_proposal', label: 'Cost / Price Proposal' },
+  { key: 'quality_assurance', label: 'Quality Assurance Plan' },
+  { key: 'risk_mitigation', label: 'Risk Mitigation Plan' },
+  { key: 'transition_plan', label: 'Transition / Phase-In Plan' },
+  { key: 'subcontracting_plan', label: 'Small Business Subcontracting Plan' },
   { key: 'compliance_checklist', label: 'Compliance Checklist' },
 ];
 
@@ -58,9 +85,18 @@ export default function ProposalGenerator() {
   // Step 2 — Opportunity
   const [opportunity, setOpportunity] = useState({
     title: '',
+    solicitation_number: '',
     agency: '',
+    contracting_office: '',
+    set_aside_type: 'Full & Open Competition',
+    contract_type: 'Firm-Fixed-Price (FFP)',
+    naics_code: '',
+    place_of_performance: '',
+    period_of_performance: '',
+    estimated_value: '',
     description: '',
     requirements: '',
+    evaluation_criteria: '',
   });
 
   // Step 3 — Selected sections
@@ -94,12 +130,14 @@ export default function ProposalGenerator() {
   useEffect(() => {
     if (location.state?.opportunity) {
       const opp = location.state.opportunity;
-      setOpportunity({
+      setOpportunity((prev) => ({
+        ...prev,
         title: opp.title || '',
+        solicitation_number: opp.notice_id || opp.solicitation_number || '',
         agency: opp.agency || '',
         description: opp.description || '',
         requirements: opp.requirements || '',
-      });
+      }));
       setCurrentStep(2);
     }
   }, [location.state]);
@@ -434,39 +472,154 @@ export default function ProposalGenerator() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Agency
-              </label>
-              <input
-                type="text"
-                value={opportunity.agency}
-                onChange={(e) => handleOpportunityChange('agency', e.target.value)}
-                placeholder="e.g., Department of Defense"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Solicitation Number
+                </label>
+                <input
+                  type="text"
+                  value={opportunity.solicitation_number}
+                  onChange={(e) => handleOpportunityChange('solicitation_number', e.target.value)}
+                  placeholder="e.g., FA251825RP002"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Agency
+                </label>
+                <input
+                  type="text"
+                  value={opportunity.agency}
+                  onChange={(e) => handleOpportunityChange('agency', e.target.value)}
+                  placeholder="e.g., Department of Defense"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Contracting Office
+                </label>
+                <input
+                  type="text"
+                  value={opportunity.contracting_office}
+                  onChange={(e) => handleOpportunityChange('contracting_office', e.target.value)}
+                  placeholder="e.g., Defense Information Systems Agency"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  NAICS Code
+                </label>
+                <input
+                  type="text"
+                  value={opportunity.naics_code}
+                  onChange={(e) => handleOpportunityChange('naics_code', e.target.value)}
+                  placeholder="e.g., 541512"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Set-Aside Type
+                </label>
+                <select
+                  value={opportunity.set_aside_type}
+                  onChange={(e) => handleOpportunityChange('set_aside_type', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all bg-white"
+                >
+                  {setAsideOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Contract Type
+                </label>
+                <select
+                  value={opportunity.contract_type}
+                  onChange={(e) => handleOpportunityChange('contract_type', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all bg-white"
+                >
+                  {contractTypeOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Place of Performance
+                </label>
+                <input
+                  type="text"
+                  value={opportunity.place_of_performance}
+                  onChange={(e) => handleOpportunityChange('place_of_performance', e.target.value)}
+                  placeholder="e.g., Washington, DC or Contractor Site"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Period of Performance
+                </label>
+                <input
+                  type="text"
+                  value={opportunity.period_of_performance}
+                  onChange={(e) => handleOpportunityChange('period_of_performance', e.target.value)}
+                  placeholder="e.g., 1 Base Year + 4 Option Years"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Estimated Value
+                </label>
+                <input
+                  type="text"
+                  value={opportunity.estimated_value}
+                  onChange={(e) => handleOpportunityChange('estimated_value', e.target.value)}
+                  placeholder="e.g., $5M - $10M"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Description
+                Description / Scope of Work
               </label>
               <textarea
                 value={opportunity.description}
                 onChange={(e) => handleOpportunityChange('description', e.target.value)}
-                placeholder="Describe the opportunity scope and objectives..."
+                placeholder="Describe the opportunity scope, objectives, and deliverables..."
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all resize-y"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Requirements
+                Requirements / SOW
               </label>
               <textarea
                 value={opportunity.requirements}
                 onChange={(e) => handleOpportunityChange('requirements', e.target.value)}
-                placeholder="List specific requirements, evaluation criteria, compliance needs..."
+                placeholder="List specific technical requirements, compliance needs, mandatory qualifications..."
                 rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all resize-y"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Evaluation Criteria{' '}
+                <span className="text-gray-400 font-normal">(from Section M)</span>
+              </label>
+              <textarea
+                value={opportunity.evaluation_criteria}
+                onChange={(e) => handleOpportunityChange('evaluation_criteria', e.target.value)}
+                placeholder="e.g., Best Value Tradeoff: Technical Approach (40%), Past Performance (30%), Price (30%)..."
+                rows={3}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all resize-y"
               />
             </div>
@@ -551,6 +704,14 @@ export default function ProposalGenerator() {
               <p className="text-gray-600">
                 <span className="font-medium">Agency:</span>{' '}
                 {opportunity.agency || 'Not specified'}
+              </p>
+              <p className="text-gray-600">
+                <span className="font-medium">Contract:</span>{' '}
+                {opportunity.contract_type || 'Not specified'}
+              </p>
+              <p className="text-gray-600">
+                <span className="font-medium">Set-Aside:</span>{' '}
+                {opportunity.set_aside_type || 'Not specified'}
               </p>
               <p className="text-gray-600">
                 <span className="font-medium">Sections:</span> {selectedSections.length} of{' '}
