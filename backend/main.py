@@ -29,7 +29,7 @@ from models import (
     AVAILABLE_SECTIONS,
 )
 from database import get_db, create_tables
-from db_models import User, VendorProfileDB, Proposal, Subscription
+from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource
 from services.ai_service import AIService
 from services.sam_service import SAMService
 from services.export_service import generate_docx, generate_pdf
@@ -118,9 +118,27 @@ async def on_startup():
                 logger.info("Default admin user created: admin@govproposal.ai")
             else:
                 logger.info("Default admin user already exists.")
+
+            # Seed default SAM.gov search source
+            result = await db.execute(
+                select(SearchSource).where(SearchSource.is_default == True)
+            )
+            default_source = result.scalar_one_or_none()
+            if default_source is None:
+                sam_source = SearchSource(
+                    name="SAM.gov",
+                    url="https://sam.gov",
+                    description="Official U.S. government system for federal contract opportunities, awards, and entity registrations.",
+                    is_default=True,
+                    is_active=True,
+                )
+                db.add(sam_source)
+                await db.commit()
+                logger.info("Default search source (SAM.gov) created.")
+
         except Exception as exc:
             await db.rollback()
-            logger.error("Failed to seed admin user: %s", exc)
+            logger.error("Failed to seed data: %s", exc)
 
 
 # ============================================================
@@ -470,6 +488,92 @@ async def delete_proposal(
     logger.info("Proposal deleted: %s (user: %s)", proposal_id, current_user.email)
 
     return {"message": "Proposal deleted successfully."}
+
+
+# ============================================================
+# Search Sources (authenticated — master list of opportunity websites)
+# ============================================================
+
+@app.get("/api/search-sources")
+async def list_search_sources(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all active search sources (master list)."""
+    result = await db.execute(
+        select(SearchSource)
+        .where(SearchSource.is_active == True)
+        .order_by(SearchSource.is_default.desc(), SearchSource.created_at.asc())
+    )
+    sources = result.scalars().all()
+    return {
+        "count": len(sources),
+        "sources": [s.to_dict() for s in sources],
+    }
+
+
+@app.post("/api/search-sources")
+async def add_search_source(
+    source: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a new opportunity website to the master search list."""
+    name = source.get("name", "").strip()
+    url = source.get("url", "").strip()
+    description = source.get("description", "").strip()
+
+    if not name or not url:
+        raise HTTPException(status_code=400, detail="Name and URL are required.")
+
+    # Check if URL already exists
+    result = await db.execute(
+        select(SearchSource).where(SearchSource.url == url)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="This URL is already in the search source list.")
+
+    new_source = SearchSource(
+        name=name,
+        url=url,
+        description=description,
+        is_default=False,
+        is_active=True,
+        added_by=current_user.id,
+    )
+    db.add(new_source)
+    await db.flush()
+
+    logger.info("Search source added: %s (%s) by %s", name, url, current_user.email)
+
+    return {"message": f"Source '{name}' added to master search list.", "source": new_source.to_dict()}
+
+
+@app.delete("/api/search-sources/{source_id}")
+async def delete_search_source(
+    source_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a search source from the master list. Default sources (SAM.gov) cannot be removed."""
+    result = await db.execute(
+        select(SearchSource).where(SearchSource.id == source_id)
+    )
+    source = result.scalar_one_or_none()
+
+    if source is None:
+        raise HTTPException(status_code=404, detail="Search source not found.")
+
+    if source.is_default:
+        raise HTTPException(status_code=400, detail="Default sources cannot be removed.")
+
+    await db.delete(source)
+    await db.flush()
+
+    logger.info("Search source removed: %s (by %s)", source.name, current_user.email)
+
+    return {"message": f"Source '{source.name}' removed from master search list."}
 
 
 # ============================================================

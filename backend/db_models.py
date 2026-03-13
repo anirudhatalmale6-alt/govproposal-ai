@@ -1,7 +1,7 @@
 """
 SQLAlchemy ORM models for GovProposal AI.
 
-Tables: User, VendorProfileDB, Proposal, Subscription
+Tables: User, VendorProfileDB, Proposal, Subscription, SearchSource
 """
 
 import uuid
@@ -175,5 +175,37 @@ class Subscription(Base):
             "status": self.status,
             "current_period_start": self.current_period_start.isoformat() if self.current_period_start else None,
             "current_period_end": self.current_period_end.isoformat() if self.current_period_end else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ──────────────────────────────────────────────
+# SearchSource (master list of opportunity websites)
+# ──────────────────────────────────────────────
+
+class SearchSource(Base):
+    __tablename__ = "search_sources"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    name = Column(String(255), nullable=False)  # e.g. "SAM.gov", "Grants.gov"
+    url = Column(String(500), nullable=False)  # Base URL of the website
+    description = Column(Text, nullable=False, default="")
+    is_default = Column(Boolean, default=False, nullable=False)  # SAM.gov = True, user-added = False
+    is_active = Column(Boolean, default=True, nullable=False)
+    added_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    # Relationships
+    added_by_user = relationship("User", foreign_keys=[added_by])
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "url": self.url,
+            "description": self.description,
+            "is_default": self.is_default,
+            "is_active": self.is_active,
+            "added_by": self.added_by,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

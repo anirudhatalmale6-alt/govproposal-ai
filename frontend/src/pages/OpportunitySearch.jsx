@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MagnifyingGlassIcon,
@@ -8,6 +8,10 @@ import {
   ArrowRightIcon,
   FunnelIcon,
   ExclamationTriangleIcon,
+  GlobeAltIcon,
+  PlusIcon,
+  TrashIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -19,6 +23,56 @@ export default function OpportunitySearch() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState('');
+
+  // Search Sources state
+  const [sources, setSources] = useState([]);
+  const [showAddSource, setShowAddSource] = useState(false);
+  const [newSource, setNewSource] = useState({ name: '', url: '', description: '' });
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState('');
+
+  // Load search sources on mount
+  useEffect(() => {
+    loadSources();
+  }, []);
+
+  const loadSources = async () => {
+    try {
+      const response = await api.get('/api/search-sources');
+      setSources(response.data.sources || []);
+    } catch {
+      // silently fail on source load
+    }
+  };
+
+  const handleAddSource = async (e) => {
+    e.preventDefault();
+    if (!newSource.name.trim() || !newSource.url.trim()) return;
+
+    setSourceLoading(true);
+    setSourceError('');
+
+    try {
+      await api.post('/api/search-sources', newSource);
+      setNewSource({ name: '', url: '', description: '' });
+      setShowAddSource(false);
+      await loadSources();
+    } catch (err) {
+      setSourceError(err.response?.data?.detail || 'Failed to add source.');
+    } finally {
+      setSourceLoading(false);
+    }
+  };
+
+  const handleRemoveSource = async (sourceId, sourceName) => {
+    if (!confirm(`Remove "${sourceName}" from the search list?`)) return;
+    try {
+      await api.delete(`/api/search-sources/${sourceId}`);
+      await loadSources();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to remove source.');
+    }
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -84,6 +138,126 @@ export default function OpportunitySearch() {
         <p className="text-gray-500 mt-1">
           Search for government contract opportunities to generate proposals
         </p>
+      </div>
+
+      {/* Search Sources */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <GlobeAltIcon className="w-5 h-5 text-navy" />
+            <h2 className="text-base font-semibold text-navy">Search Sources</h2>
+            <span className="text-xs text-gray-400 ml-1">({sources.length} active)</span>
+          </div>
+          <button
+            onClick={() => setShowAddSource(!showAddSource)}
+            className="flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-dark transition-all cursor-pointer"
+          >
+            {showAddSource ? (
+              <>
+                <XMarkIcon className="w-4 h-4" />
+                Cancel
+              </>
+            ) : (
+              <>
+                <PlusIcon className="w-4 h-4" />
+                Add Source
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Source Tags */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {sources.map((source) => (
+            <div
+              key={source.id}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border transition-all ${
+                source.is_default
+                  ? 'bg-navy/5 border-navy/20 text-navy font-medium'
+                  : 'bg-gray-50 border-gray-200 text-gray-700'
+              }`}
+            >
+              <GlobeAltIcon className="w-3.5 h-3.5" />
+              <span>{source.name}</span>
+              {source.is_default && (
+                <span className="text-[10px] bg-navy/10 text-navy px-1.5 py-0.5 rounded-full font-semibold">
+                  DEFAULT
+                </span>
+              )}
+              {!source.is_default && (
+                <button
+                  onClick={() => handleRemoveSource(source.id, source.name)}
+                  className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer ml-0.5"
+                  title="Remove source"
+                >
+                  <XMarkIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          ))}
+          {sources.length === 0 && (
+            <p className="text-sm text-gray-400">No search sources configured.</p>
+          )}
+        </div>
+
+        {/* Add Source Form */}
+        {showAddSource && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <form onSubmit={handleAddSource} className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Website Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newSource.name}
+                    onChange={(e) => setNewSource((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Grants.gov, FPDS, GovWin"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Website URL <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={newSource.url}
+                    onChange={(e) => setNewSource((prev) => ({ ...prev, url: e.target.value }))}
+                    placeholder="e.g., https://www.grants.gov"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={newSource.description}
+                  onChange={(e) => setNewSource((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Brief description of what this website offers..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              {sourceError && (
+                <p className="text-xs text-red-600">{sourceError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={sourceLoading || !newSource.name.trim() || !newSource.url.trim()}
+                className="bg-accent hover:bg-accent-dark text-white px-6 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+              >
+                <PlusIcon className="w-4 h-4" />
+                {sourceLoading ? 'Adding...' : 'Add to Master List'}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
       {/* Search Form */}
