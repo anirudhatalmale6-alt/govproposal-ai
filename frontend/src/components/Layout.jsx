@@ -14,6 +14,7 @@ import {
   RectangleStackIcon,
   CreditCardIcon,
   ChartBarIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,6 +27,7 @@ const navItems = [
   { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
   { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
   { label: 'Billing', path: '/billing', icon: CreditCardIcon },
+  { label: 'Audit Log', path: '/audit-log', icon: ClockIcon },
 ];
 
 const tierColors = {

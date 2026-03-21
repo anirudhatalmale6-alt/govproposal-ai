@@ -17,6 +17,9 @@ import {
   PencilSquareIcon,
   SwatchIcon,
   ArrowPathIcon,
+  ShareIcon,
+  ClipboardDocumentIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -488,6 +491,11 @@ export default function ProposalEditor() {
   const [previewTheme, setPreviewTheme] = useState('navy');
   const [previewFont, setPreviewFont] = useState('Georgia, serif');
   const [showCustomize, setShowCustomize] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [shareLinks, setShareLinks] = useState([]);
+  const [sharingLoading, setSharingLoading] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(null);
+  const [proposalId, setProposalId] = useState(null);
   const quillRefs = useRef({});
 
   useEffect(() => {
@@ -495,6 +503,7 @@ export default function ProposalEditor() {
       const proposalData = location.state.proposal;
       const sectionContent = proposalData.sections || proposalData;
 
+      if (proposalData.id || proposalData.proposal_id) setProposalId(proposalData.id || proposalData.proposal_id);
       if (proposalData.opportunity_title) setProposalTitle(proposalData.opportunity_title);
       if (proposalData.vendor_name) setVendorName(proposalData.vendor_name);
 
@@ -524,6 +533,50 @@ export default function ProposalEditor() {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  const fetchShareLinks = async () => {
+    if (!proposalId) return;
+    try {
+      const res = await api.get(`/api/proposals/${proposalId}/shares`);
+      setShareLinks(res.data.shares || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleCreateShareLink = async () => {
+    if (!proposalId) {
+      alert('Proposal must be saved first to create a share link.');
+      return;
+    }
+    setSharingLoading(true);
+    try {
+      const res = await api.post(`/api/proposals/${proposalId}/share`);
+      setShareLinks((prev) => [res.data.share, ...prev]);
+    } catch (err) {
+      alert(`Failed to create share link: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setSharingLoading(false);
+    }
+  };
+
+  const handleDeleteShareLink = async (shareId) => {
+    if (!proposalId) return;
+    try {
+      await api.delete(`/api/proposals/${proposalId}/share/${shareId}`);
+      setShareLinks((prev) => prev.filter((s) => s.id !== shareId));
+    } catch (err) {
+      alert(`Failed to delete share link: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
+  const copyShareUrl = (token) => {
+    const url = `${window.location.origin}/shared/${token}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedToken(token);
+      setTimeout(() => setCopiedToken(null), 2000);
+    });
   };
 
   const handleExport = async (format) => {
@@ -637,6 +690,78 @@ export default function ProposalEditor() {
               Customize
             </button>
           )}
+          {/* Share Button */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowShareMenu(!showShareMenu);
+                if (!showShareMenu) fetchShareLinks();
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white transition-all cursor-pointer"
+            >
+              <ShareIcon className="w-4 h-4" />
+              Share
+            </button>
+            {showShareMenu && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-navy">Share Proposal</h3>
+                  <button onClick={() => setShowShareMenu(false)} className="p-1 hover:bg-gray-100 rounded cursor-pointer">
+                    <XMarkIcon className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <button
+                  onClick={handleCreateShareLink}
+                  disabled={sharingLoading || !proposalId}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-dark text-white transition-all disabled:opacity-50 cursor-pointer mb-3"
+                >
+                  {sharingLoading ? (
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <PlusIcon className="w-4 h-4" />
+                  )}
+                  Generate Share Link
+                </button>
+                {!proposalId && (
+                  <p className="text-xs text-amber-600 mb-3">Proposal must be saved to create share links.</p>
+                )}
+                {shareLinks.length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Active Links</p>
+                    {shareLinks.map((link) => (
+                      <div key={link.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-600 truncate font-mono">
+                            /shared/{link.share_token.slice(0, 8)}...
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            {new Date(link.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => copyShareUrl(link.share_token)}
+                          className="p-1.5 hover:bg-white rounded transition-colors cursor-pointer"
+                          title="Copy link"
+                        >
+                          <ClipboardDocumentIcon className={`w-4 h-4 ${copiedToken === link.share_token ? 'text-green-500' : 'text-gray-400'}`} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteShareLink(link.id)}
+                          className="p-1.5 hover:bg-white rounded transition-colors cursor-pointer"
+                          title="Delete link"
+                        >
+                          <TrashIcon className="w-4 h-4 text-red-400 hover:text-red-600" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <button
             onClick={() => handleExport('pdf')}
             disabled={!!exporting}

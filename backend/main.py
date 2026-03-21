@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +29,7 @@ from models import (
     AVAILABLE_SECTIONS,
 )
 from database import get_db, create_tables
-from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource, ProposalTemplate, FavoriteTemplate
+from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource, ProposalTemplate, FavoriteTemplate, ProposalShare, AuditLog
 from services.ai_service import AIService
 from services.sam_service import SAMService
 from services.export_service import generate_docx, generate_pdf
@@ -515,6 +515,7 @@ async def list_vendor_profiles(
 @app.post("/api/generate-proposal", response_model=ProposalResponse)
 async def generate_proposal(
     request: ProposalRequest,
+    req: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -587,6 +588,16 @@ async def generate_proposal(
         await db.flush()
 
         logger.info("Proposal saved to DB: %s (user: %s)", proposal_id, current_user.email)
+
+        # Audit log
+        await log_audit(
+            db,
+            user_id=current_user.id,
+            action="created_proposal",
+            proposal_id=proposal_id,
+            details=json.dumps({"title": opp_title, "sections": len(valid_sections)}),
+            ip_address=req.client.host if req.client else None,
+        )
 
         return ProposalResponse(
             proposal_id=proposal_id,
@@ -911,7 +922,9 @@ async def toggle_favorite(
 @app.post("/api/export/docx")
 async def export_docx(
     request: ExportRequest,
+    req: Request,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Export proposal sections as a formatted Word document (.docx).
@@ -929,6 +942,15 @@ async def export_docx(
         }
 
         buffer = generate_docx(proposal_data)
+
+        # Audit log
+        await log_audit(
+            db,
+            user_id=current_user.id,
+            action="exported_docx",
+            details=json.dumps({"title": request.proposal_title}),
+            ip_address=req.client.host if req.client else None,
+        )
 
         # Generate filename
         safe_title = "".join(
@@ -956,7 +978,9 @@ async def export_docx(
 @app.post("/api/export/pdf")
 async def export_pdf(
     request: ExportRequest,
+    req: Request,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Export proposal sections as a formatted PDF document.
@@ -974,6 +998,15 @@ async def export_pdf(
         }
 
         buffer = generate_pdf(proposal_data)
+
+        # Audit log
+        await log_audit(
+            db,
+            user_id=current_user.id,
+            action="exported_pdf",
+            details=json.dumps({"title": request.proposal_title}),
+            ip_address=req.client.host if req.client else None,
+        )
 
         # Generate filename
         safe_title = "".join(
@@ -1264,6 +1297,229 @@ async def delete_image(
         file_path.unlink()
         return {"message": "Image deleted."}
     raise HTTPException(status_code=404, detail="Image not found")
+
+
+# ============================================================
+# Audit Log Helper
+# ============================================================
+
+async def log_audit(
+    db: AsyncSession,
+    user_id: str,
+    action: str,
+    proposal_id: str = None,
+    details: str = None,
+    ip_address: str = None,
+):
+    """Create an audit log entry."""
+    entry = AuditLog(
+        user_id=user_id,
+        proposal_id=proposal_id,
+        action=action,
+        details=details,
+        ip_address=ip_address,
+    )
+    db.add(entry)
+    await db.flush()
+    logger.info("Audit log: user=%s action=%s proposal=%s", user_id, action, proposal_id)
+
+
+# ============================================================
+# Proposal Share Endpoints (authenticated + one public)
+# ============================================================
+
+@app.post("/api/proposals/{proposal_id}/share")
+async def create_share_link(
+    proposal_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a shareable link for a proposal draft."""
+    # Verify proposal belongs to user
+    result = await db.execute(
+        select(Proposal).where(
+            Proposal.id == proposal_id,
+            Proposal.user_id == current_user.id,
+        )
+    )
+    proposal = result.scalar_one_or_none()
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+
+    share = ProposalShare(
+        proposal_id=proposal_id,
+        created_by=current_user.id,
+    )
+    db.add(share)
+    await db.flush()
+
+    # Audit log
+    await log_audit(
+        db,
+        user_id=current_user.id,
+        action="shared_proposal",
+        proposal_id=proposal_id,
+        details=json.dumps({"share_token": share.share_token}),
+        ip_address=request.client.host if request.client else None,
+    )
+
+    logger.info("Share link created for proposal %s by %s", proposal_id, current_user.email)
+
+    return {
+        "share": share.to_dict(),
+        "share_url": f"/shared/{share.share_token}",
+    }
+
+
+@app.get("/api/proposals/{proposal_id}/shares")
+async def list_share_links(
+    proposal_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List active share links for a proposal."""
+    # Verify proposal belongs to user
+    result = await db.execute(
+        select(Proposal).where(
+            Proposal.id == proposal_id,
+            Proposal.user_id == current_user.id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+
+    result = await db.execute(
+        select(ProposalShare).where(
+            ProposalShare.proposal_id == proposal_id,
+            ProposalShare.is_active == True,
+        ).order_by(ProposalShare.created_at.desc())
+    )
+    shares = result.scalars().all()
+
+    return {
+        "count": len(shares),
+        "shares": [s.to_dict() for s in shares],
+    }
+
+
+@app.delete("/api/proposals/{proposal_id}/share/{share_id}")
+async def deactivate_share_link(
+    proposal_id: str,
+    share_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deactivate a share link."""
+    # Verify proposal belongs to user
+    result = await db.execute(
+        select(Proposal).where(
+            Proposal.id == proposal_id,
+            Proposal.user_id == current_user.id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+
+    result = await db.execute(
+        select(ProposalShare).where(
+            ProposalShare.id == share_id,
+            ProposalShare.proposal_id == proposal_id,
+        )
+    )
+    share = result.scalar_one_or_none()
+    if share is None:
+        raise HTTPException(status_code=404, detail="Share link not found.")
+
+    share.is_active = False
+    db.add(share)
+    await db.flush()
+
+    logger.info("Share link deactivated: %s (user: %s)", share_id, current_user.email)
+
+    return {"message": "Share link deactivated."}
+
+
+@app.get("/api/shared/{share_token}")
+async def get_shared_proposal(
+    share_token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public endpoint — view a shared proposal draft (no auth required).
+    Checks that the share link is active and not expired.
+    """
+    from datetime import datetime, timezone
+
+    result = await db.execute(
+        select(ProposalShare).where(ProposalShare.share_token == share_token)
+    )
+    share = result.scalar_one_or_none()
+
+    if share is None or not share.is_active:
+        raise HTTPException(status_code=404, detail="Share link not found or has been deactivated.")
+
+    # Check expiry
+    if share.expires_at and share.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="This share link has expired.")
+
+    # Get proposal
+    result = await db.execute(
+        select(Proposal).where(Proposal.id == share.proposal_id)
+    )
+    proposal = result.scalar_one_or_none()
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="Proposal no longer exists.")
+
+    # Get creator info
+    result = await db.execute(
+        select(User).where(User.id == share.created_by)
+    )
+    creator = result.scalar_one_or_none()
+
+    return {
+        "proposal": proposal.to_dict(),
+        "shared_by": creator.full_name if creator else "Unknown",
+        "shared_on": share.created_at.isoformat() if share.created_at else None,
+    }
+
+
+# ============================================================
+# Audit Log Endpoint (authenticated)
+# ============================================================
+
+@app.get("/api/audit-log")
+async def get_audit_log(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get audit log entries for the current user.
+    Supports pagination with limit/offset.
+    """
+    result = await db.execute(
+        select(AuditLog)
+        .where(AuditLog.user_id == current_user.id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    entries = result.scalars().all()
+
+    # Get total count
+    count_result = await db.execute(
+        select(func.count(AuditLog.id)).where(AuditLog.user_id == current_user.id)
+    )
+    total = count_result.scalar() or 0
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "entries": [e.to_dict() for e in entries],
+    }
 
 
 # ============================================================

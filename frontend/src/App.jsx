@@ -14,6 +14,8 @@ import Register from './pages/Register';
 import LandingPage from './pages/LandingPage';
 import Billing from './pages/Billing';
 import MarketResearch from './pages/MarketResearch';
+import AuditLog from './pages/AuditLog';
+import SharedProposal from './pages/SharedProposal';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -134,6 +136,9 @@ function AppRoutes() {
         }
       />
 
+      {/* Public shared proposal view — no auth required */}
+      <Route path="/shared/:token" element={<SharedProposal />} />
+
       {/* Protected routes — inside Layout with sidebar/header */}
       <Route
         element={
@@ -151,6 +156,7 @@ function AppRoutes() {
         <Route path="/proposals" element={<Proposals />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
+        <Route path="/audit-log" element={<AuditLog />} />
         <Route path="/admin" element={<Admin />} />
       </Route>
 

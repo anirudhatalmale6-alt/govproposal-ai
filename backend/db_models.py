@@ -269,3 +269,65 @@ class FavoriteTemplate(Base):
             "template_id": self.template_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# ──────────────────────────────────────────────
+# ProposalShare (shareable draft links)
+# ──────────────────────────────────────────────
+
+class ProposalShare(Base):
+    __tablename__ = "proposal_shares"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    proposal_id = Column(String(36), ForeignKey("proposals.id", ondelete="CASCADE"), nullable=False, index=True)
+    share_token = Column(String(36), unique=True, nullable=False, default=_uuid, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Relationships
+    proposal = relationship("Proposal", foreign_keys=[proposal_id])
+    creator = relationship("User", foreign_keys=[created_by])
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "proposal_id": self.proposal_id,
+            "share_token": self.share_token,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "is_active": self.is_active,
+        }
+
+
+# ──────────────────────────────────────────────
+# AuditLog (user activity tracking)
+# ──────────────────────────────────────────────
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    proposal_id = Column(String(36), ForeignKey("proposals.id", ondelete="SET NULL"), nullable=True, index=True)
+    action = Column(String(100), nullable=False)  # e.g. "created_proposal", "exported_pdf", "shared_proposal", "login"
+    details = Column(Text, nullable=True)  # JSON string with extra info
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    proposal = relationship("Proposal", foreign_keys=[proposal_id])
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "proposal_id": self.proposal_id,
+            "action": self.action,
+            "details": self.details,
+            "ip_address": self.ip_address,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
