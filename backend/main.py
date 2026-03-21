@@ -83,6 +83,9 @@ app.include_router(auth_router)
 ai_service = AIService()
 sam_service = SAMService()
 
+from services.usaspending_service import USASpendingService
+usaspending_service = USASpendingService()
+
 
 # ============================================================
 # Startup Event — DB init + default admin user
@@ -119,22 +122,52 @@ async def on_startup():
             else:
                 logger.info("Default admin user already exists.")
 
-            # Seed default SAM.gov search source
+            # Seed default search sources
             result = await db.execute(
                 select(SearchSource).where(SearchSource.is_default == True)
             )
-            default_source = result.scalar_one_or_none()
-            if default_source is None:
-                sam_source = SearchSource(
+            default_sources = result.scalars().all()
+            existing_names = {s.name for s in default_sources}
+
+            new_sources = []
+            if "SAM.gov" not in existing_names:
+                new_sources.append(SearchSource(
                     name="SAM.gov",
                     url="https://sam.gov",
                     description="Official U.S. government system for federal contract opportunities, awards, and entity registrations.",
                     is_default=True,
                     is_active=True,
-                )
-                db.add(sam_source)
+                ))
+            if "USASpending.gov" not in existing_names:
+                new_sources.append(SearchSource(
+                    name="USASpending.gov",
+                    url="https://www.usaspending.gov/search",
+                    description="Comprehensive U.S. government spending data — search contract awards, grants, and federal spending by agency, NAICS, and keyword.",
+                    is_default=True,
+                    is_active=True,
+                ))
+            if "SBA.gov" not in existing_names:
+                new_sources.append(SearchSource(
+                    name="SBA.gov",
+                    url="https://www.sba.gov/federal-contracting",
+                    description="Small Business Administration — federal contracting resources, set-aside programs, 8(a), HUBZone, and small business certifications.",
+                    is_default=True,
+                    is_active=True,
+                ))
+            if "GSA.gov" not in existing_names:
+                new_sources.append(SearchSource(
+                    name="GSA.gov",
+                    url="https://www.gsa.gov",
+                    description="General Services Administration — GSA Schedules, government-wide contracts, and procurement resources.",
+                    is_default=True,
+                    is_active=True,
+                ))
+
+            if new_sources:
+                for src in new_sources:
+                    db.add(src)
                 await db.commit()
-                logger.info("Default search source (SAM.gov) created.")
+                logger.info("Seeded %d default search sources.", len(new_sources))
 
             # Seed proposal templates
             from seed_templates import get_seed_templates
@@ -172,28 +205,54 @@ async def search_opportunities(
     keyword: Optional[str] = Query(None, description="Search keyword for opportunities"),
     naics: Optional[str] = Query(None, description="NAICS code filter"),
     limit: int = Query(10, ge=1, le=100, description="Max results to return"),
+    source: Optional[str] = Query(None, description="Search source: sam, usaspending, gsa, or all"),
 ):
     """
-    Search SAM.gov for federal contract opportunities.
+    Search federal contract opportunities across multiple sources.
 
-    Queries the SAM.gov Opportunities API and returns matching results
-    with title, agency, due date, and other details.
+    Supported sources:
+    - sam: SAM.gov Opportunities API (default)
+    - usaspending: USASpending.gov Awards API (free, no key)
+    - gsa: GSA.gov (uses SAM.gov API)
+    - all: Search all sources and combine results
     """
+    source = (source or "all").lower()
+    all_results = []
+    errors = []
+
     try:
-        results = sam_service.search_opportunities(
-            keyword=keyword,
-            naics=naics,
-            limit=limit,
-        )
+        # SAM.gov search
+        if source in ("sam", "gsa", "all"):
+            try:
+                sam_results = sam_service.search_opportunities(
+                    keyword=keyword, naics=naics, limit=limit,
+                )
+                for r in sam_results:
+                    r["source"] = "SAM.gov"
+                all_results.extend(sam_results)
+            except Exception as exc:
+                errors.append(f"SAM.gov: {exc}")
+
+        # USASpending.gov search
+        if source in ("usaspending", "all"):
+            try:
+                usa_results = usaspending_service.search_awards(
+                    keyword=keyword or "", naics=naics, limit=limit,
+                )
+                all_results.extend(usa_results)
+            except Exception as exc:
+                errors.append(f"USASpending.gov: {exc}")
+
+        # Limit total results
+        all_results = all_results[:limit]
+
         return {
             "keyword": keyword,
-            "count": len(results),
-            "opportunities": results,
+            "count": len(all_results),
+            "opportunities": all_results,
+            "sources_searched": source,
+            "errors": errors if errors else None,
         }
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except ConnectionError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
     except Exception as exc:
         logger.error("Opportunity search failed: %s", exc)
         raise HTTPException(

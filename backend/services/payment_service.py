@@ -13,7 +13,6 @@ PLANS = {
     "starter": {
         "name": "Starter",
         "price_usd": 0,
-        "price_inr": 0,
         "features": [
             "3 proposals per month",
             "SAM.gov opportunity search",
@@ -24,7 +23,6 @@ PLANS = {
     "professional": {
         "name": "Professional",
         "price_usd": 49,
-        "price_inr": 3999,
         "features": [
             "Unlimited proposals",
             "All 18 proposal sections",
@@ -37,7 +35,6 @@ PLANS = {
     "enterprise": {
         "name": "Enterprise",
         "price_usd": 199,
-        "price_inr": 14999,
         "features": [
             "Everything in Professional",
             "Multi-user team accounts",

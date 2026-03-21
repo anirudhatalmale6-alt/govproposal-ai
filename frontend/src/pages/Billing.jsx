@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
   CheckIcon,
-  CreditCardIcon,
   SparklesIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -12,8 +11,7 @@ import api from '../services/api';
 const planFeatures = {
   starter: {
     name: 'Starter',
-    priceUSD: 'Free',
-    priceINR: 'Free',
+    price: 'Free',
     period: '',
     description: 'For individual contractors getting started',
     features: [
@@ -26,8 +24,7 @@ const planFeatures = {
   },
   professional: {
     name: 'Professional',
-    priceUSD: '$49',
-    priceINR: '₹3,999',
+    price: '$49',
     period: '/month',
     description: 'For growing government contractors',
     features: [
@@ -42,8 +39,7 @@ const planFeatures = {
   },
   enterprise: {
     name: 'Enterprise',
-    priceUSD: '$199',
-    priceINR: '₹14,999',
+    price: '$199',
     period: '/month',
     description: 'For large teams and agencies',
     features: [
@@ -63,8 +59,6 @@ export default function Billing() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [selectedGateway, setSelectedGateway] = useState('stripe');
-
   useEffect(() => {
     fetchPaymentConfig();
     // Check URL for payment result
@@ -78,10 +72,6 @@ export default function Billing() {
     try {
       const res = await api.get('/api/payments/config');
       setPaymentConfig(res.data);
-      // Auto-select available gateway
-      if (res.data.razorpay?.configured && !res.data.stripe?.configured) {
-        setSelectedGateway('razorpay');
-      }
     } catch {
       // ignore
     }
@@ -93,60 +83,16 @@ export default function Billing() {
     setError('');
 
     try {
-      if (selectedGateway === 'stripe') {
-        const res = await api.post('/api/payments/stripe/checkout', {
-          plan,
-          base_url: window.location.origin,
-        });
-        // Redirect to Stripe Checkout
-        window.location.href = res.data.checkout_url;
-      } else {
-        // Razorpay
-        const res = await api.post('/api/payments/razorpay/order', { plan });
-        openRazorpay(res.data, plan);
-      }
+      const res = await api.post('/api/payments/stripe/checkout', {
+        plan,
+        base_url: window.location.origin,
+      });
+      // Redirect to Stripe Checkout
+      window.location.href = res.data.checkout_url;
     } catch (err) {
       setError(err.response?.data?.detail || 'Payment failed. Please check payment gateway configuration.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const openRazorpay = (orderData, plan) => {
-    const options = {
-      key: orderData.key_id,
-      amount: orderData.amount,
-      currency: orderData.currency,
-      name: 'GovProposal AI',
-      description: `${planFeatures[plan]?.name || 'Professional'} Plan Subscription`,
-      order_id: orderData.order_id,
-      handler: async function (response) {
-        try {
-          await api.post('/api/payments/razorpay/verify', {
-            order_id: response.razorpay_order_id,
-            payment_id: response.razorpay_payment_id,
-            signature: response.razorpay_signature,
-            plan,
-          });
-          setSuccess('Payment successful! Your subscription is now active.');
-        } catch {
-          setError('Payment verification failed. Please contact support.');
-        }
-      },
-      prefill: {
-        email: user?.email || '',
-        name: user?.full_name || '',
-      },
-      theme: {
-        color: '#1e3a5f',
-      },
-    };
-
-    if (window.Razorpay) {
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } else {
-      setError('Razorpay SDK not loaded. Please refresh the page.');
     }
   };
 
@@ -190,48 +136,13 @@ export default function Billing() {
         </div>
       )}
 
-      {/* Payment Gateway Selector */}
-      <div className="mb-6">
-        <p className="text-sm font-semibold text-gray-600 mb-3">Payment Method</p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setSelectedGateway('stripe')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium border-2 transition-all cursor-pointer ${
-              selectedGateway === 'stripe'
-                ? 'border-blue bg-blue/5 text-blue'
-                : 'border-gray-200 text-gray-500 hover:border-gray-300'
-            }`}
-          >
-            <CreditCardIcon className="w-5 h-5" />
-            Stripe (USD)
-            {paymentConfig?.stripe?.configured && (
-              <CheckCircleIcon className="w-4 h-4 text-green-500" />
-            )}
-          </button>
-          <button
-            onClick={() => setSelectedGateway('razorpay')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium border-2 transition-all cursor-pointer ${
-              selectedGateway === 'razorpay'
-                ? 'border-blue bg-blue/5 text-blue'
-                : 'border-gray-200 text-gray-500 hover:border-gray-300'
-            }`}
-          >
-            <CreditCardIcon className="w-5 h-5" />
-            Razorpay (INR)
-            {paymentConfig?.razorpay?.configured && (
-              <CheckCircleIcon className="w-4 h-4 text-green-500" />
-            )}
-          </button>
-        </div>
-      </div>
-
       {/* Pricing Plans */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {Object.entries(planFeatures).map(([key, plan]) => {
           const isCurrentPlan =
             (key === 'starter' && currentTier === 'free') ||
             (key === 'professional' && currentTier === 'paid');
-          const price = selectedGateway === 'razorpay' ? plan.priceINR : plan.priceUSD;
+          const price = plan.price;
 
           return (
             <div
@@ -305,19 +216,16 @@ export default function Billing() {
       </div>
 
       {/* Setup Instructions */}
-      {paymentConfig && !paymentConfig.stripe?.configured && !paymentConfig.razorpay?.configured && (
+      {paymentConfig && !paymentConfig.stripe?.configured && (
         <div className="mt-8 bg-amber-50 border border-amber-200 rounded-xl p-5">
           <h3 className="text-sm font-bold text-amber-800 mb-2">Payment Setup Required</h3>
           <p className="text-sm text-amber-700 mb-3">
-            To accept payments, add your API keys to the backend .env file:
+            To accept payments, add your Stripe API keys to the backend .env file:
           </p>
           <div className="bg-white rounded-lg p-4 font-mono text-xs text-gray-700 space-y-1">
             <p className="text-gray-400"># Stripe (USD payments)</p>
             <p>STRIPE_SECRET_KEY=sk_live_xxx</p>
             <p>STRIPE_PUBLISHABLE_KEY=pk_live_xxx</p>
-            <p className="mt-2 text-gray-400"># Razorpay (INR payments)</p>
-            <p>RAZORPAY_KEY_ID=rzp_live_xxx</p>
-            <p>RAZORPAY_KEY_SECRET=xxx</p>
           </div>
         </div>
       )}

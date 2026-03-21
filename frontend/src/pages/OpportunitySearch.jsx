@@ -19,6 +19,7 @@ export default function OpportunitySearch() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [naicsCode, setNaicsCode] = useState('');
+  const [searchSource, setSearchSource] = useState('all');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -83,7 +84,7 @@ export default function OpportunitySearch() {
     setSearched(true);
 
     try {
-      const params = {};
+      const params = { source: searchSource };
       if (keyword.trim()) params.keyword = keyword.trim();
       if (naicsCode.trim()) params.naics = naicsCode.trim();
 
@@ -299,6 +300,32 @@ export default function OpportunitySearch() {
             </div>
           </div>
 
+          {/* Source Filter Tabs */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search In</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'all', label: 'All Sources' },
+                { key: 'sam', label: 'SAM.gov' },
+                { key: 'usaspending', label: 'USASpending.gov' },
+                { key: 'gsa', label: 'GSA.gov' },
+              ].map((src) => (
+                <button
+                  key={src.key}
+                  type="button"
+                  onClick={() => setSearchSource(src.key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all cursor-pointer ${
+                    searchSource === src.key
+                      ? 'border-navy bg-navy text-white'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  {src.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={loading || (!keyword.trim() && !naicsCode.trim())}
@@ -396,6 +423,14 @@ export default function OpportunitySearch() {
                         <TagIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
                         <span className="bg-blue/10 text-blue px-2 py-0.5 rounded-full text-xs font-medium">
                           {opp.type}
+                        </span>
+                      </div>
+                    )}
+                    {opp.source && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <TagIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="bg-accent/10 text-accent px-2 py-0.5 rounded-full text-xs font-medium">
+                          {opp.source}
                         </span>
                       </div>
                     )}
