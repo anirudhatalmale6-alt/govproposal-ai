@@ -34,7 +34,7 @@ export default function Register() {
 
     try {
       await register(email, password, fullName, companyName);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.detail ||

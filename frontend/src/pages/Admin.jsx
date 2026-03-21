@@ -30,7 +30,7 @@ export default function Admin() {
   // Redirect non-admin users
   useEffect(() => {
     if (currentUser && !currentUser.is_admin) {
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [currentUser, navigate]);
 

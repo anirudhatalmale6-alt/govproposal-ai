@@ -8,6 +8,9 @@ import {
   ArrowLeftIcon,
   CheckCircleIcon,
   ListBulletIcon,
+  PlusIcon,
+  TrashIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -19,7 +22,16 @@ const sectionLabels = {
   capability_statement: 'Capability Statement',
   past_performance: 'Past Performance',
   technical_approach: 'Technical Approach',
+  management_approach: 'Management Approach',
   staffing_plan: 'Staffing Plan',
+  key_personnel: 'Key Personnel / Resumes',
+  cost_price_proposal: 'Cost / Price Proposal',
+  quality_assurance: 'Quality Assurance Plan',
+  risk_mitigation: 'Risk Mitigation Plan',
+  transition_plan: 'Transition / Phase-In Plan',
+  subcontracting_plan: 'Small Business Subcontracting Plan',
+  compliance_matrix: 'Compliance Matrix',
+  implementation_timeline: 'Implementation Timeline',
   compliance_checklist: 'Compliance Checklist',
 };
 
@@ -47,6 +59,275 @@ const quillFormats = [
   'blockquote',
 ];
 
+const defaultLineItem = () => ({
+  id: Date.now() + Math.random(),
+  clin: '',
+  description: '',
+  laborCategory: '',
+  quantity: 1,
+  unit: 'Hours',
+  unitRate: 0,
+  total: 0,
+});
+
+function PricingTable({ onContentUpdate }) {
+  const [lineItems, setLineItems] = useState([defaultLineItem()]);
+  const [odcs, setOdcs] = useState([{ id: Date.now(), description: '', amount: 0 }]);
+  const [notes, setNotes] = useState('');
+
+  const unitOptions = ['Hours', 'Months', 'Each', 'Lot', 'Days', 'FTE Years'];
+
+  const updateLineItem = (id, field, value) => {
+    setLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, [field]: value };
+        if (field === 'quantity' || field === 'unitRate') {
+          updated.total = (parseFloat(updated.quantity) || 0) * (parseFloat(updated.unitRate) || 0);
+        }
+        return updated;
+      })
+    );
+  };
+
+  const addLineItem = () => setLineItems((prev) => [...prev, defaultLineItem()]);
+  const removeLineItem = (id) => setLineItems((prev) => prev.filter((item) => item.id !== id));
+
+  const addOdc = () => setOdcs((prev) => [...prev, { id: Date.now(), description: '', amount: 0 }]);
+  const updateOdc = (id, field, value) =>
+    setOdcs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value } : o)));
+  const removeOdc = (id) => setOdcs((prev) => prev.filter((o) => o.id !== id));
+
+  const laborTotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
+  const odcTotal = odcs.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
+  const grandTotal = laborTotal + odcTotal;
+
+  // Sync pricing table data back to parent as HTML content
+  useEffect(() => {
+    const html = buildPricingHtml();
+    onContentUpdate(html);
+  }, [lineItems, odcs, notes]);
+
+  const buildPricingHtml = () => {
+    let html = '<h2>Cost / Price Proposal</h2>';
+    html += '<h3>Labor Categories & Pricing</h3>';
+    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+    html += '<tr style="background:#1e293b;color:white"><th style="padding:8px;border:1px solid #ddd;text-align:left">CLIN</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Description</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Labor Category</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Qty</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Unit</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Unit Rate ($)</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Total ($)</th></tr>';
+    lineItems.forEach((item) => {
+      html += `<tr><td style="padding:8px;border:1px solid #ddd">${item.clin}</td><td style="padding:8px;border:1px solid #ddd">${item.description}</td><td style="padding:8px;border:1px solid #ddd">${item.laborCategory}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${item.quantity}</td><td style="padding:8px;border:1px solid #ddd">${item.unit}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${parseFloat(item.unitRate).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${item.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
+    });
+    html += `<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6" style="padding:8px;border:1px solid #ddd;text-align:right">Labor Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${laborTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
+    html += '</table>';
+
+    if (odcs.length > 0) {
+      html += '<h3>Other Direct Costs (ODCs)</h3>';
+      html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+      html += '<tr style="background:#1e293b;color:white"><th style="padding:8px;border:1px solid #ddd;text-align:left">Description</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Amount ($)</th></tr>';
+      odcs.forEach((o) => {
+        html += `<tr><td style="padding:8px;border:1px solid #ddd">${o.description}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${parseFloat(o.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
+      });
+      html += `<tr style="background:#f1f5f9;font-weight:bold"><td style="padding:8px;border:1px solid #ddd;text-align:right">ODC Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${odcTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
+      html += '</table>';
+    }
+
+    html += `<h3>Total Proposed Price: $${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h3>`;
+    if (notes) html += `<h3>Pricing Notes & Assumptions</h3><p>${notes}</p>`;
+    return html;
+  };
+
+  const fmt = (n) =>
+    '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <div className="space-y-6">
+      {/* Labor Line Items */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-navy flex items-center gap-2">
+            <CurrencyDollarIcon className="w-4 h-4" />
+            Labor Categories & Line Items
+          </h3>
+          <button
+            onClick={addLineItem}
+            className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add Line Item
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-navy text-white">
+                <th className="px-3 py-2.5 text-left font-medium rounded-tl-lg">CLIN</th>
+                <th className="px-3 py-2.5 text-left font-medium">Description</th>
+                <th className="px-3 py-2.5 text-left font-medium">Labor Category</th>
+                <th className="px-3 py-2.5 text-right font-medium">Qty</th>
+                <th className="px-3 py-2.5 text-left font-medium">Unit</th>
+                <th className="px-3 py-2.5 text-right font-medium">Rate ($)</th>
+                <th className="px-3 py-2.5 text-right font-medium">Total</th>
+                <th className="px-3 py-2.5 rounded-tr-lg w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {lineItems.map((item, idx) => (
+                <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-2 py-1.5 border-b border-gray-100">
+                    <input
+                      type="text"
+                      value={item.clin}
+                      onChange={(e) => updateLineItem(item.id, 'clin', e.target.value)}
+                      placeholder="0001"
+                      className="w-16 px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 border-b border-gray-100">
+                    <input
+                      type="text"
+                      value={item.description}
+                      onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                      placeholder="e.g., IT Support Services"
+                      className="w-full min-w-[140px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 border-b border-gray-100">
+                    <input
+                      type="text"
+                      value={item.laborCategory}
+                      onChange={(e) => updateLineItem(item.id, 'laborCategory', e.target.value)}
+                      placeholder="e.g., Sr. Developer"
+                      className="w-full min-w-[120px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 border-b border-gray-100">
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value)}
+                      min="0"
+                      className="w-16 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 border-b border-gray-100">
+                    <select
+                      value={item.unit}
+                      onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)}
+                      className="px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue/30"
+                    >
+                      {unitOptions.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-1.5 border-b border-gray-100">
+                    <input
+                      type="number"
+                      value={item.unitRate}
+                      onChange={(e) => updateLineItem(item.id, 'unitRate', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-24 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 border-b border-gray-100 text-right text-xs font-semibold text-navy">
+                    {fmt(item.total)}
+                  </td>
+                  <td className="px-2 py-1.5 border-b border-gray-100">
+                    {lineItems.length > 1 && (
+                      <button
+                        onClick={() => removeLineItem(item.id)}
+                        className="p-1 text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-navy/5 font-semibold">
+                <td colSpan="6" className="px-3 py-2.5 text-right text-sm text-navy">
+                  Labor Subtotal
+                </td>
+                <td className="px-3 py-2.5 text-right text-sm text-navy">{fmt(laborTotal)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Other Direct Costs */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-navy">Other Direct Costs (ODCs)</h3>
+          <button
+            onClick={addOdc}
+            className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add ODC
+          </button>
+        </div>
+        <div className="space-y-2">
+          {odcs.map((odc) => (
+            <div key={odc.id} className="flex items-center gap-3">
+              <input
+                type="text"
+                value={odc.description}
+                onChange={(e) => updateOdc(odc.id, 'description', e.target.value)}
+                placeholder="e.g., Travel, Software Licenses, Equipment"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue/30"
+              />
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-400">$</span>
+                <input
+                  type="number"
+                  value={odc.amount}
+                  onChange={(e) => updateOdc(odc.id, 'amount', e.target.value)}
+                  min="0"
+                  step="0.01"
+                  className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
+                />
+              </div>
+              {odcs.length > 1 && (
+                <button
+                  onClick={() => removeOdc(odc.id)}
+                  className="p-1.5 text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end mt-2 text-sm font-semibold text-navy">
+          ODC Subtotal: {fmt(odcTotal)}
+        </div>
+      </div>
+
+      {/* Grand Total */}
+      <div className="bg-accent/10 border border-accent/20 rounded-xl p-5 flex items-center justify-between">
+        <span className="text-lg font-bold text-navy">Total Proposed Price</span>
+        <span className="text-2xl font-bold text-accent">{fmt(grandTotal)}</span>
+      </div>
+
+      {/* Pricing Notes */}
+      <div>
+        <h3 className="text-sm font-semibold text-navy mb-2">Pricing Notes & Assumptions</h3>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Enter cost assumptions, exclusions, basis of estimate, rate reasonableness justification..."
+          rows={4}
+          className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 resize-y"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ProposalEditor() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -63,10 +344,8 @@ export default function ProposalEditor() {
   useEffect(() => {
     if (location.state?.proposal) {
       const proposalData = location.state.proposal;
-      // The proposal may have a "sections" key or the sections directly
       const sectionContent = proposalData.sections || proposalData;
 
-      // Store metadata for export
       if (proposalData.opportunity_title) setProposalTitle(proposalData.opportunity_title);
       if (proposalData.vendor_name) setVendorName(proposalData.vendor_name);
 
@@ -81,7 +360,6 @@ export default function ProposalEditor() {
       setSections(parsed);
       setSectionTitles(titles);
 
-      // Set first section as active
       const firstKey = Object.keys(parsed)[0];
       if (firstKey) setActiveSection(firstKey);
     }
@@ -102,7 +380,6 @@ export default function ProposalEditor() {
   const handleExport = async (format) => {
     setExporting(format);
     try {
-      // Build export payload matching backend ExportRequest schema
       const exportSections = {};
       for (const [key, content] of Object.entries(sections)) {
         exportSections[key] = {
@@ -120,25 +397,17 @@ export default function ProposalEditor() {
         responseType: 'blob',
       });
 
-      // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute(
-        'download',
-        `proposal.${format === 'pdf' ? 'pdf' : 'docx'}`
-      );
+      link.setAttribute('download', `proposal.${format === 'pdf' ? 'pdf' : 'docx'}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Export failed:', err);
-      alert(
-        `Export failed: ${
-          err.response?.data?.detail || err.message || 'Unknown error'
-        }`
-      );
+      alert(`Export failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`);
     } finally {
       setExporting('');
     }
@@ -194,24 +463,9 @@ export default function ProposalEditor() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-navy hover:bg-navy-light text-white transition-all disabled:opacity-50 cursor-pointer"
           >
             {exporting === 'pdf' ? (
-              <svg
-                className="animate-spin w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
+              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
               <DocumentArrowDownIcon className="w-4 h-4" />
@@ -224,24 +478,9 @@ export default function ProposalEditor() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue hover:bg-blue-light text-white transition-all disabled:opacity-50 cursor-pointer"
           >
             {exporting === 'docx' ? (
-              <svg
-                className="animate-spin w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
+              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
               <DocumentArrowDownIcon className="w-4 h-4" />
@@ -274,11 +513,19 @@ export default function ProposalEditor() {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <CheckCircleIcon
-                      className={`w-4 h-4 flex-shrink-0 ${
-                        activeSection === key ? 'text-accent' : 'text-gray-300'
-                      }`}
-                    />
+                    {key === 'cost_price_proposal' ? (
+                      <CurrencyDollarIcon
+                        className={`w-4 h-4 flex-shrink-0 ${
+                          activeSection === key ? 'text-accent' : 'text-green-400'
+                        }`}
+                      />
+                    ) : (
+                      <CheckCircleIcon
+                        className={`w-4 h-4 flex-shrink-0 ${
+                          activeSection === key ? 'text-accent' : 'text-gray-300'
+                        }`}
+                      />
+                    )}
                     {sectionLabels[key] || key}
                   </div>
                 </button>
@@ -296,20 +543,37 @@ export default function ProposalEditor() {
                 ref={(el) => (sectionRefs.current[key] = el)}
                 className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
               >
-                <div className="bg-navy/5 border-b border-gray-100 px-6 py-4 flex items-center gap-2">
-                  <DocumentTextIcon className="w-5 h-5 text-navy" />
+                <div className={`border-b border-gray-100 px-6 py-4 flex items-center gap-2 ${
+                  key === 'cost_price_proposal' ? 'bg-green-50' : 'bg-navy/5'
+                }`}>
+                  {key === 'cost_price_proposal' ? (
+                    <CurrencyDollarIcon className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <DocumentTextIcon className="w-5 h-5 text-navy" />
+                  )}
                   <h2 className="text-base font-semibold text-navy">
                     {sectionLabels[key] || key}
                   </h2>
+                  {key === 'cost_price_proposal' && (
+                    <span className="ml-auto text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                      Interactive Pricing
+                    </span>
+                  )}
                 </div>
                 <div className="p-4">
-                  <ReactQuill
-                    theme="snow"
-                    value={sections[key]}
-                    onChange={(content) => handleContentChange(key, content)}
-                    modules={quillModules}
-                    formats={quillFormats}
-                  />
+                  {key === 'cost_price_proposal' ? (
+                    <PricingTable
+                      onContentUpdate={(html) => handleContentChange(key, html)}
+                    />
+                  ) : (
+                    <ReactQuill
+                      theme="snow"
+                      value={sections[key]}
+                      onChange={(content) => handleContentChange(key, content)}
+                      modules={quillModules}
+                      formats={quillFormats}
+                    />
+                  )}
                 </div>
               </div>
             ))}

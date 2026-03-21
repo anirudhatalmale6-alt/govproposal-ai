@@ -16,7 +16,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
-  { label: 'Dashboard', path: '/', icon: HomeIcon },
+  { label: 'Dashboard', path: '/dashboard', icon: HomeIcon },
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
   { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
   { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
@@ -64,7 +64,7 @@ export default function Layout() {
             </button>
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 no-underline text-white">
+            <Link to="/dashboard" className="flex items-center gap-2.5 no-underline text-white">
               <div className="bg-accent rounded-lg p-1.5">
                 <DocumentTextIcon className="w-6 h-6 text-white" />
               </div>

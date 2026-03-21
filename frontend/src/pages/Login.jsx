@@ -19,7 +19,7 @@ export default function Login() {
 
     try {
       await login(email, password);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.detail ||

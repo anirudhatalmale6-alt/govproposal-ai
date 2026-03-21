@@ -11,6 +11,7 @@ import Admin from './pages/Admin';
 import Templates from './pages/Templates';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import LandingPage from './pages/LandingPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -85,15 +86,34 @@ function PublicRoute({ children }) {
 
   // Redirect authenticated users away from login/register
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
 }
 
+function LandingOrDashboard() {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <svg className="animate-spin w-10 h-10 text-navy" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      </div>
+    );
+  }
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  return <LandingPage />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
+      {/* Landing page — shown to unauthenticated visitors */}
+      <Route path="/" element={<LandingOrDashboard />} />
+
       {/* Public routes — no sidebar/header layout */}
       <Route
         path="/login"
@@ -120,7 +140,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/opportunities" element={<OpportunitySearch />} />
         <Route path="/vendor-profile" element={<VendorProfile />} />
         <Route path="/new-proposal" element={<ProposalGenerator />} />
