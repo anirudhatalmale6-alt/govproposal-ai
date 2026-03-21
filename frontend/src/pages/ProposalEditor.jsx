@@ -13,6 +13,10 @@ import {
   CurrencyDollarIcon,
   PhotoIcon,
   XCircleIcon,
+  EyeIcon,
+  PencilSquareIcon,
+  SwatchIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -443,6 +447,10 @@ export default function ProposalEditor() {
   const [activeSection, setActiveSection] = useState('');
   const [exporting, setExporting] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [previewTheme, setPreviewTheme] = useState('navy');
+  const [previewFont, setPreviewFont] = useState('Georgia, serif');
+  const [showCustomize, setShowCustomize] = useState(false);
   const quillRefs = useRef({});
 
   useEffect(() => {
@@ -552,7 +560,9 @@ export default function ProposalEditor() {
             Back
           </button>
           <div className="h-5 w-px bg-gray-200" />
-          <h1 className="text-lg font-semibold text-navy">Proposal Editor</h1>
+          <h1 className="text-lg font-semibold text-navy">
+            {previewMode ? 'Proposal Preview' : 'Proposal Editor'}
+          </h1>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
@@ -561,6 +571,35 @@ export default function ProposalEditor() {
           </button>
         </div>
         <div className="flex items-center gap-3">
+          {/* Preview / Edit Toggle */}
+          <button
+            onClick={() => { setPreviewMode(!previewMode); setShowCustomize(false); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              previewMode
+                ? 'bg-accent text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {previewMode ? (
+              <><PencilSquareIcon className="w-4 h-4" /> Edit Mode</>
+            ) : (
+              <><EyeIcon className="w-4 h-4" /> Preview</>
+            )}
+          </button>
+          {/* Customize button (only in preview mode) */}
+          {previewMode && (
+            <button
+              onClick={() => setShowCustomize(!showCustomize)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                showCustomize
+                  ? 'bg-navy text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <SwatchIcon className="w-4 h-4" />
+              Customize
+            </button>
+          )}
           <button
             onClick={() => handleExport('pdf')}
             disabled={!!exporting}
@@ -638,8 +677,211 @@ export default function ProposalEditor() {
           </div>
         </aside>
 
-        {/* Main Editor Area */}
+        {/* Main Content Area */}
         <div className="flex-1 p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-7.5rem)]">
+          {/* ─── PREVIEW MODE ───────────────────────────────────────── */}
+          {previewMode ? (
+            <div className="max-w-4xl mx-auto">
+              {/* Customization Panel */}
+              {showCustomize && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+                  <h3 className="text-sm font-semibold text-navy mb-4 flex items-center gap-2">
+                    <SwatchIcon className="w-4 h-4" />
+                    Customize Preview
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {/* Color Theme */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-2">Color Theme</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {[
+                          { key: 'navy', label: 'Navy', color: '#1e3a5f' },
+                          { key: 'blue', label: 'Blue', color: '#2563eb' },
+                          { key: 'green', label: 'Green', color: '#059669' },
+                          { key: 'red', label: 'Crimson', color: '#dc2626' },
+                          { key: 'purple', label: 'Purple', color: '#7c3aed' },
+                          { key: 'gray', label: 'Classic', color: '#374151' },
+                        ].map((t) => (
+                          <button
+                            key={t.key}
+                            onClick={() => setPreviewTheme(t.key)}
+                            className={`w-8 h-8 rounded-full border-2 transition-all cursor-pointer ${
+                              previewTheme === t.key ? 'border-accent scale-110 shadow-md' : 'border-gray-200'
+                            }`}
+                            style={{ backgroundColor: t.color }}
+                            title={t.label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {/* Font */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-2">Font Family</label>
+                      <select
+                        value={previewFont}
+                        onChange={(e) => setPreviewFont(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 cursor-pointer"
+                      >
+                        <option value="Georgia, serif">Georgia (Classic)</option>
+                        <option value="'Times New Roman', serif">Times New Roman</option>
+                        <option value="Arial, sans-serif">Arial (Modern)</option>
+                        <option value="Calibri, sans-serif">Calibri</option>
+                        <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                        <option value="Garamond, serif">Garamond</option>
+                      </select>
+                    </div>
+                    {/* Actions */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-2">Actions</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setPreviewMode(false)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all cursor-pointer"
+                        >
+                          <PencilSquareIcon className="w-3.5 h-3.5" />
+                          Edit Content
+                        </button>
+                        <button
+                          onClick={() => navigate('/new-proposal')}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 transition-all cursor-pointer"
+                        >
+                          <ArrowPathIcon className="w-3.5 h-3.5" />
+                          Regenerate
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview Document */}
+              <div
+                className="bg-white shadow-xl border border-gray-200 relative"
+                style={{
+                  fontFamily: previewFont,
+                  minHeight: '800px',
+                }}
+              >
+                {/* DRAFT Watermark */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+                  style={{ overflow: 'hidden' }}
+                >
+                  <span
+                    className="text-gray-200 font-extrabold uppercase select-none"
+                    style={{
+                      fontSize: '120px',
+                      transform: 'rotate(-35deg)',
+                      letterSpacing: '20px',
+                      opacity: 0.15,
+                    }}
+                  >
+                    DRAFT
+                  </span>
+                </div>
+
+                {/* Document Content */}
+                <div className="relative z-20">
+                  {/* Cover / Header */}
+                  <div
+                    className="px-12 py-10 text-white"
+                    style={{
+                      backgroundColor: {
+                        navy: '#1e3a5f', blue: '#2563eb', green: '#059669',
+                        red: '#dc2626', purple: '#7c3aed', gray: '#374151',
+                      }[previewTheme] || '#1e3a5f',
+                    }}
+                  >
+                    <p className="text-sm uppercase tracking-widest opacity-80 mb-2">Government Proposal</p>
+                    <h1 className="text-3xl font-bold mb-3">{proposalTitle || 'Untitled Proposal'}</h1>
+                    {vendorName && (
+                      <p className="text-lg opacity-90">Prepared by: {vendorName}</p>
+                    )}
+                    <div className="mt-4 flex items-center gap-4 text-sm opacity-70">
+                      <span>Sections: {sectionKeys.length}</span>
+                      <span>|</span>
+                      <span>Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </div>
+                  </div>
+
+                  {/* Table of Contents */}
+                  <div className="px-12 py-8 border-b border-gray-200">
+                    <h2
+                      className="text-lg font-bold mb-4"
+                      style={{
+                        color: {
+                          navy: '#1e3a5f', blue: '#2563eb', green: '#059669',
+                          red: '#dc2626', purple: '#7c3aed', gray: '#374151',
+                        }[previewTheme] || '#1e3a5f',
+                      }}
+                    >
+                      Table of Contents
+                    </h2>
+                    <ol className="space-y-1.5">
+                      {sectionKeys.map((key, idx) => (
+                        <li key={key} className="flex items-center text-sm text-gray-600">
+                          <span className="font-semibold text-gray-800 w-8">{idx + 1}.</span>
+                          <span>{sectionTitles[key] || sectionLabels[key] || key}</span>
+                          <span className="flex-1 mx-3 border-b border-dotted border-gray-300" />
+                          <span className="text-gray-400 text-xs">Section {idx + 1}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  {/* Sections */}
+                  {sectionKeys.map((key, idx) => (
+                    <div
+                      key={key}
+                      ref={(el) => (sectionRefs.current[key] = el)}
+                      className="px-12 py-8 border-b border-gray-100"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <span
+                          className="text-xs font-bold text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0"
+                          style={{
+                            backgroundColor: {
+                              navy: '#1e3a5f', blue: '#2563eb', green: '#059669',
+                              red: '#dc2626', purple: '#7c3aed', gray: '#374151',
+                            }[previewTheme] || '#1e3a5f',
+                          }}
+                        >
+                          {idx + 1}
+                        </span>
+                        <h2
+                          className="text-xl font-bold"
+                          style={{
+                            color: {
+                              navy: '#1e3a5f', blue: '#2563eb', green: '#059669',
+                              red: '#dc2626', purple: '#7c3aed', gray: '#374151',
+                            }[previewTheme] || '#1e3a5f',
+                          }}
+                        >
+                          {sectionTitles[key] || sectionLabels[key] || key}
+                        </h2>
+                      </div>
+                      <div
+                        className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                        style={{ fontFamily: previewFont }}
+                        dangerouslySetInnerHTML={{ __html: sections[key] || '<p class="text-gray-400 italic">No content generated for this section.</p>' }}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Footer */}
+                  <div className="px-12 py-6 bg-gray-50 text-center">
+                    <p className="text-xs text-gray-400">
+                      This document is a DRAFT preview. Content may change before final submission.
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Generated by GovProposal AI | {new Date().toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+          /* ─── EDIT MODE ───────────────────────────────────────── */
           <div className="max-w-4xl mx-auto space-y-8">
             {sectionKeys.map((key) => (
               <div
@@ -697,6 +939,7 @@ export default function ProposalEditor() {
               </div>
             ))}
           </div>
+          )}
         </div>
       </div>
     </div>
