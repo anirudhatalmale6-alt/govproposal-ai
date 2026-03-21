@@ -21,3 +21,6 @@ backend/data/vendor_profiles/*.json
 *.pdf
 *.png
 !frontend/src/assets/*.png
+*.log
+*.db
+*.png

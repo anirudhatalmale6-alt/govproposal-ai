@@ -1,11 +1,14 @@
 """
 Authentication routes for GovProposal AI.
 
-Endpoints: register, login, get profile, update profile.
+Endpoints: register, login, verify email, resend verification, get profile, update profile.
 """
 
 import logging
+import re
+import secrets
 from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, EmailStr
@@ -20,6 +23,7 @@ from services.auth_service import (
     create_access_token,
     get_current_user,
 )
+from services.email_service import send_verification_email
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +34,27 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 # Request / Response schemas
 # ──────────────────────────────────────────────
 
+def validate_password(password: str) -> str | None:
+    """
+    Validate password meets security requirements.
+    Returns error message if invalid, None if valid.
+    """
+    if len(password) < 10:
+        return "Password must be at least 10 characters long."
+    if not re.search(r'[A-Z]', password):
+        return "Password must contain at least one uppercase letter."
+    if not re.search(r'[a-z]', password):
+        return "Password must contain at least one lowercase letter."
+    if not re.search(r'[0-9]', password):
+        return "Password must contain at least one digit."
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]', password):
+        return "Password must contain at least one special character (!@#$%^&* etc.)."
+    return None
+
+
 class RegisterRequest(BaseModel):
     email: str = Field(..., description="User email address")
-    password: str = Field(..., min_length=6, description="Password (min 6 characters)")
+    password: str = Field(..., min_length=10, description="Password (min 10 characters, mixed case, digits, special chars)")
     full_name: str = Field("", description="User's full name")
     company_name: str = Field("", description="Company name")
 
@@ -52,17 +74,32 @@ class AuthResponse(BaseModel):
     token: str
     token_type: str = "bearer"
     user: dict
+    email_verified: bool = True
+
+
+class RegisterResponse(BaseModel):
+    message: str
+    user: dict
+    requires_verification: bool = True
 
 
 class UserResponse(BaseModel):
     user: dict
 
 
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(..., description="Email verification token")
+
+
+class ResendVerificationRequest(BaseModel):
+    email: str = Field(..., description="Email to resend verification to")
+
+
 # ──────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
     db: AsyncSession = Depends(get_db),
@@ -70,8 +107,17 @@ async def register(
     """
     Register a new user account.
 
-    Creates the user with a hashed password and returns a JWT token.
+    Creates the user with a hashed password and sends a verification email.
+    User must verify email before they can log in.
     """
+    # Validate password strength
+    pwd_error = validate_password(request.password)
+    if pwd_error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=pwd_error,
+        )
+
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == request.email.lower().strip()))
     existing = result.scalar_one_or_none()
@@ -81,25 +127,119 @@ async def register(
             detail="A user with this email already exists.",
         )
 
-    # Create user
+    # Generate verification token
+    verification_token = secrets.token_urlsafe(32)
+    verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    # Create user (unverified)
     user = User(
         email=request.email.lower().strip(),
         hashed_password=hash_password(request.password),
         full_name=request.full_name.strip(),
         company_name=request.company_name.strip(),
+        email_verified=False,
+        verification_token=verification_token,
+        verification_token_expires=verification_expires,
     )
     db.add(user)
     await db.flush()  # Populate the id
 
-    # Generate token
+    # Send verification email
+    try:
+        await send_verification_email(user.email, verification_token, user.full_name)
+        logger.info("Verification email sent to: %s", user.email)
+    except Exception as e:
+        logger.warning("Failed to send verification email to %s: %s", user.email, e)
+
+    logger.info("New user registered (pending verification): %s (%s)", user.email, user.id)
+
+    return RegisterResponse(
+        message="Account created. Please check your email to verify your account.",
+        user=user.to_dict(),
+        requires_verification=True,
+    )
+
+
+@router.post("/verify-email")
+async def verify_email(
+    request: VerifyEmailRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Verify a user's email address using the token sent via email.
+    """
+    result = await db.execute(
+        select(User).where(User.verification_token == request.token)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification token.",
+        )
+
+    if user.verification_token_expires:
+        expires = user.verification_token_expires
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Verification token has expired. Please request a new one.",
+            )
+
+    # Mark as verified
+    user.email_verified = True
+    user.verification_token = None
+    user.verification_token_expires = None
+    db.add(user)
+    await db.flush()
+
+    # Generate login token
     token = create_access_token(data={"sub": user.id, "email": user.email})
 
-    logger.info("New user registered: %s (%s)", user.email, user.id)
+    logger.info("Email verified: %s", user.email)
 
     return AuthResponse(
         token=token,
         user=user.to_dict(),
+        email_verified=True,
     )
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    request: ResendVerificationRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Resend the verification email to a user.
+    """
+    result = await db.execute(
+        select(User).where(User.email == request.email.lower().strip())
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # Don't reveal whether email exists
+        return {"message": "If an account with this email exists, a verification email has been sent."}
+
+    if user.email_verified:
+        return {"message": "This email is already verified. You can log in."}
+
+    # Generate new token
+    user.verification_token = secrets.token_urlsafe(32)
+    user.verification_token_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    db.add(user)
+    await db.flush()
+
+    try:
+        await send_verification_email(user.email, user.verification_token, user.full_name)
+    except Exception as e:
+        logger.warning("Failed to resend verification email: %s", e)
+
+    return {"message": "If an account with this email exists, a verification email has been sent."}
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -109,6 +249,7 @@ async def login(
 ):
     """
     Authenticate a user and return a JWT token.
+    Requires email to be verified first.
     """
     result = await db.execute(select(User).where(User.email == request.email.lower().strip()))
     user = result.scalar_one_or_none()
@@ -119,6 +260,12 @@ async def login(
             detail="Invalid email or password.",
         )
 
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email before logging in. Check your inbox for the verification link.",
+        )
+
     token = create_access_token(data={"sub": user.id, "email": user.email})
 
     logger.info("User logged in: %s", user.email)
@@ -126,6 +273,7 @@ async def login(
     return AuthResponse(
         token=token,
         user=user.to_dict(),
+        email_verified=True,
     )
 
 

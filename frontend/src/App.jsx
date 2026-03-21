@@ -16,6 +16,7 @@ import Billing from './pages/Billing';
 import MarketResearch from './pages/MarketResearch';
 import AuditLog from './pages/AuditLog';
 import SharedProposal from './pages/SharedProposal';
+import VerifyEmail from './pages/VerifyEmail';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -136,8 +137,9 @@ function AppRoutes() {
         }
       />
 
-      {/* Public shared proposal view — no auth required */}
+      {/* Public routes — no auth required */}
       <Route path="/shared/:token" element={<SharedProposal />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Protected routes — inside Layout with sidebar/header */}
       <Route

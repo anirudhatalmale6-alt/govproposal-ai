@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { DocumentTextIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ExclamationTriangleIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,21 +12,40 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+
+  const handleResendVerification = async () => {
+    setResending(true);
+    setResendMessage('');
+    try {
+      const res = await api.post('/api/auth/resend-verification', { email });
+      setResendMessage(res.data.message || 'Verification email resent.');
+    } catch {
+      setResendMessage('Failed to resend. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNeedsVerification(false);
     setLoading(true);
 
     try {
       await login(email, password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-          err.response?.data?.message ||
-          'Invalid email or password. Please try again.'
-      );
+      const detail = err.response?.data?.detail || err.response?.data?.message || '';
+      if (err.response?.status === 403 && detail.toLowerCase().includes('verify')) {
+        setNeedsVerification(true);
+        setError(detail);
+      } else {
+        setError(detail || 'Invalid email or password. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,9 +77,30 @@ export default function Login() {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5 flex items-start gap-2">
-              <ExclamationTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className={`border rounded-lg p-3 mb-5 flex items-start gap-2 ${needsVerification ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+              {needsVerification ? (
+                <EnvelopeIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              ) : (
+                <ExclamationTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p className={`text-sm ${needsVerification ? 'text-amber-700' : 'text-red-700'}`}>{error}</p>
+                {needsVerification && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={resending}
+                      className="text-xs font-medium text-blue hover:text-blue-light transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {resending ? 'Sending...' : 'Resend verification email'}
+                    </button>
+                    {resendMessage && (
+                      <p className="text-xs text-accent font-medium mt-1">{resendMessage}</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -52,11 +52,14 @@ export function AuthProvider({ children }) {
       full_name: fullName,
       company_name: companyName,
     });
-    const { token: newToken, user: userData } = response.data;
+    // Registration now requires email verification — don't auto-login
+    return response.data;
+  }, []);
+
+  const loginWithToken = useCallback((newToken, userData) => {
     localStorage.setItem(TOKEN_KEY, newToken);
     setToken(newToken);
     setUser(userData);
-    return userData;
   }, []);
 
   const logout = useCallback(() => {
@@ -74,6 +77,7 @@ export function AuthProvider({ children }) {
     isAuthenticated,
     login,
     register,
+    loginWithToken,
     logout,
   };
 

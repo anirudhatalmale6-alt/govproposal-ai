@@ -47,6 +47,9 @@ class User(Base):
     is_admin = Column(Boolean, default=False, nullable=False)
     subscription_tier = Column(String(20), default="free", nullable=False)  # "free" | "paid"
     stripe_customer_id = Column(String(255), nullable=True)
+    email_verified = Column(Boolean, default=False, nullable=False)
+    verification_token = Column(String(255), nullable=True)
+    verification_token_expires = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
@@ -63,6 +66,7 @@ class User(Base):
             "full_name": self.full_name,
             "company_name": self.company_name,
             "is_admin": self.is_admin,
+            "email_verified": self.email_verified,
             "subscription_tier": self.subscription_tier,
             "stripe_customer_id": self.stripe_customer_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,

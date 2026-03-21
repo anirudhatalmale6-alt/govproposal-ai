@@ -1,11 +1,24 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { DocumentTextIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { useAuth } from '../context/AuthContext';
+import {
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  EnvelopeIcon,
+} from '@heroicons/react/24/outline';
+import api from '../services/api';
+
+const PASSWORD_RULES = [
+  { label: 'At least 10 characters', test: (p) => p.length >= 10 },
+  { label: 'One uppercase letter (A-Z)', test: (p) => /[A-Z]/.test(p) },
+  { label: 'One lowercase letter (a-z)', test: (p) => /[a-z]/.test(p) },
+  { label: 'One digit (0-9)', test: (p) => /[0-9]/.test(p) },
+  { label: 'One special character (!@#$%^&*)', test: (p) => /[!@#$%^&*()_+\-=\[\]{};:'",.<>?/\\|`~]/.test(p) },
+];
 
 export default function Register() {
   const navigate = useNavigate();
-  const { register } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -14,27 +27,43 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+
+  // Password strength checks
+  const passwordChecks = useMemo(
+    () => PASSWORD_RULES.map((rule) => ({ ...rule, passed: rule.test(password) })),
+    [password]
+  );
+  const allPasswordChecksPassed = passwordChecks.every((c) => c.passed);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // Validate password match
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (!allPasswordChecksPassed) {
+      setError('Password does not meet all security requirements.');
       return;
     }
 
     setLoading(true);
 
     try {
-      await register(email, password, fullName, companyName);
-      navigate('/dashboard', { replace: true });
+      await api.post('/api/auth/register', {
+        email,
+        password,
+        full_name: fullName,
+        company_name: companyName,
+      });
+      setRegisteredEmail(email);
+      setRegistered(true);
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -45,6 +74,76 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  const handleResendVerification = async () => {
+    setResending(true);
+    setResendMessage('');
+    try {
+      const res = await api.post('/api/auth/resend-verification', { email: registeredEmail });
+      setResendMessage(res.data.message || 'Verification email resent.');
+    } catch {
+      setResendMessage('Failed to resend. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  // Registration success — show verification message
+  if (registered) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center gap-2.5 mb-4">
+              <div className="bg-accent rounded-lg p-2">
+                <DocumentTextIcon className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-navy">
+              GovProposal <span className="text-accent">AI</span>
+            </h1>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+            <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-5">
+              <EnvelopeIcon className="w-8 h-8 text-accent" />
+            </div>
+            <h2 className="text-xl font-semibold text-navy mb-3">Check Your Email</h2>
+            <p className="text-sm text-gray-500 mb-2">
+              We sent a verification link to:
+            </p>
+            <p className="text-sm font-semibold text-navy mb-5">{registeredEmail}</p>
+            <p className="text-sm text-gray-500 mb-6">
+              Click the link in the email to verify your account and start creating proposals. The link expires in 24 hours.
+            </p>
+
+            <div className="border-t border-gray-100 pt-5 space-y-3">
+              <p className="text-xs text-gray-400">Didn't receive the email? Check your spam folder or</p>
+              <button
+                onClick={handleResendVerification}
+                disabled={resending}
+                className="text-sm font-medium text-blue hover:text-blue-light transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {resending ? 'Sending...' : 'Resend verification email'}
+              </button>
+              {resendMessage && (
+                <p className="text-xs text-accent font-medium">{resendMessage}</p>
+              )}
+            </div>
+
+            <div className="mt-6">
+              <Link
+                to="/login"
+                className="text-sm font-medium text-blue hover:text-blue-light no-underline"
+              >
+                Back to Sign In
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4 py-8">
@@ -131,11 +230,32 @@ export default function Register() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder="Min 10 chars, mixed case, digits, special"
                 required
                 autoComplete="new-password"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
               />
+              {/* Password strength indicator */}
+              {password.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {passwordChecks.map((check) => (
+                    <div key={check.label} className="flex items-center gap-1.5">
+                      {check.passed ? (
+                        <CheckCircleIcon className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+                      ) : (
+                        <XCircleIcon className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                      )}
+                      <span
+                        className={`text-xs ${
+                          check.passed ? 'text-accent' : 'text-red-400'
+                        }`}
+                      >
+                        {check.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -151,11 +271,23 @@ export default function Register() {
                 autoComplete="new-password"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
               />
+              {confirmPassword.length > 0 && password !== confirmPassword && (
+                <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                  <XCircleIcon className="w-3.5 h-3.5" />
+                  Passwords do not match
+                </p>
+              )}
+              {confirmPassword.length > 0 && password === confirmPassword && (
+                <p className="text-xs text-accent mt-1 flex items-center gap-1">
+                  <CheckCircleIcon className="w-3.5 h-3.5" />
+                  Passwords match
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !allPasswordChecksPassed || password !== confirmPassword}
               className="w-full bg-accent hover:bg-accent-dark text-white py-3 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md"
             >
               {loading ? (

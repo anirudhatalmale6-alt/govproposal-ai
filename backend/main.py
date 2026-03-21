@@ -117,6 +117,7 @@ async def on_startup():
                     full_name="System Administrator",
                     company_name="GovProposal AI",
                     is_admin=True,
+                    email_verified=True,
                     subscription_tier="paid",
                 )
                 db.add(admin_user)
