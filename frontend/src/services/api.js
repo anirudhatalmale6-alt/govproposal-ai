@@ -42,7 +42,7 @@ api.interceptors.response.use(
         !window.location.pathname.includes('/login') &&
         !window.location.pathname.includes('/register')
       ) {
-        window.location.href = '/login';
+        window.location.href = import.meta.env.BASE_URL + 'login';
       }
     }
 
