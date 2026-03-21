@@ -12,17 +12,19 @@ logger = logging.getLogger(__name__)
 PLANS = {
     "starter": {
         "name": "Starter",
-        "price_usd": 0,
+        "price_usd": 999,
         "features": [
-            "3 proposals per month",
-            "SAM.gov opportunity search",
-            "9 proposal sections",
+            "Up to 10 proposals per month",
+            "SAM.gov & USASpending.gov search",
+            "All 18 proposal sections",
             "PDF export",
+            "Image uploads in proposals",
+            "Email support",
         ],
     },
     "professional": {
         "name": "Professional",
-        "price_usd": 49,
+        "price_usd": 2999,
         "features": [
             "Unlimited proposals",
             "All 18 proposal sections",
@@ -30,18 +32,22 @@ PLANS = {
             "PDF & DOCX export",
             "Template library (8+ templates)",
             "Priority AI generation",
+            "Multi-source opportunity search",
+            "Dedicated account manager",
         ],
     },
     "enterprise": {
         "name": "Enterprise",
-        "price_usd": 199,
+        "price_usd": 0,
+        "contact_sales": True,
         "features": [
             "Everything in Professional",
             "Multi-user team accounts",
-            "Custom templates",
+            "Custom templates & branding",
             "API access",
-            "Dedicated support",
+            "Dedicated support & onboarding",
             "SSO / SAML integration",
+            "Custom integrations",
         ],
     },
 }

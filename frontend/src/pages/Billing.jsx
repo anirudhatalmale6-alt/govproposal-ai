@@ -11,22 +11,25 @@ import api from '../services/api';
 const planFeatures = {
   starter: {
     name: 'Starter',
-    price: 'Free',
-    period: '',
+    price: '$999',
+    period: '/month',
     description: 'For individual contractors getting started',
+    cancelNote: 'Cancel anytime',
     features: [
-      '3 proposals per month',
-      'SAM.gov opportunity search',
-      '9 proposal sections',
+      'Up to 10 proposals per month',
+      'SAM.gov & USASpending.gov search',
+      'All 18 proposal sections',
       'PDF export',
-      'Demo mode',
+      'Image uploads in proposals',
+      'Email support',
     ],
   },
   professional: {
     name: 'Professional',
-    price: '$49',
+    price: '$2,999',
     period: '/month',
     description: 'For growing government contractors',
+    cancelNote: 'Cancel anytime',
     features: [
       'Unlimited proposals',
       'All 18 proposal sections',
@@ -34,21 +37,25 @@ const planFeatures = {
       'PDF & DOCX export',
       'Template library (8+ templates)',
       'Priority AI generation',
+      'Multi-source opportunity search',
+      'Dedicated account manager',
     ],
     highlighted: true,
   },
   enterprise: {
     name: 'Enterprise',
-    price: '$199',
-    period: '/month',
+    price: 'Custom',
+    period: '',
     description: 'For large teams and agencies',
+    contactUs: true,
     features: [
       'Everything in Professional',
       'Multi-user team accounts',
-      'Custom templates',
+      'Custom templates & branding',
       'API access',
-      'Dedicated support',
+      'Dedicated support & onboarding',
       'SSO / SAML integration',
+      'Custom integrations',
     ],
   },
 };
@@ -162,12 +169,16 @@ export default function Billing() {
               )}
               <h3 className="text-lg font-bold text-navy">{plan.name}</h3>
               <p className="text-xs text-gray-400 mt-1 mb-3">{plan.description}</p>
-              <div className="mb-5">
+              <div className="mb-2">
                 <span className="text-3xl font-extrabold text-navy">{price}</span>
                 {plan.period && (
                   <span className="text-gray-400 text-sm">{plan.period}</span>
                 )}
               </div>
+              {plan.cancelNote && (
+                <p className="text-xs text-accent font-medium mb-4">{plan.cancelNote}</p>
+              )}
+              {!plan.cancelNote && <div className="mb-4" />}
               <ul className="space-y-2.5 mb-6">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-gray-600">
@@ -180,10 +191,13 @@ export default function Billing() {
                 <div className="text-center py-3 rounded-xl bg-gray-100 text-gray-500 text-sm font-semibold">
                   Current Plan
                 </div>
-              ) : key === 'starter' ? (
-                <div className="text-center py-3 rounded-xl bg-gray-50 text-gray-400 text-sm font-medium">
-                  Free Forever
-                </div>
+              ) : plan.contactUs ? (
+                <a
+                  href="mailto:sales@govproposal.ai"
+                  className="block w-full py-3 rounded-xl font-semibold text-sm text-center bg-navy hover:bg-navy-light text-white transition-all"
+                >
+                  Contact Sales
+                </a>
               ) : (
                 <button
                   onClick={() => handleSubscribe(key)}

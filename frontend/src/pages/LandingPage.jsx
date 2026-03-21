@@ -77,23 +77,26 @@ const steps = [
 const pricingPlans = [
   {
     name: 'Starter',
-    price: 'Free',
-    period: '',
+    price: '$999',
+    period: '/month',
+    cancelNote: 'Cancel anytime',
     description: 'For individual contractors getting started',
     features: [
-      '3 proposals per month',
-      'SAM.gov opportunity search',
-      '9 proposal sections',
+      'Up to 10 proposals per month',
+      'SAM.gov & USASpending.gov search',
+      'All 18 proposal sections',
       'PDF export',
-      'Demo mode',
+      'Image uploads in proposals',
+      'Email support',
     ],
-    cta: 'Get Started Free',
+    cta: 'Get Started',
     highlighted: false,
   },
   {
     name: 'Professional',
-    price: '$49',
+    price: '$2,999',
     period: '/month',
+    cancelNote: 'Cancel anytime',
     description: 'For growing government contractors',
     features: [
       'Unlimited proposals',
@@ -102,8 +105,10 @@ const pricingPlans = [
       'PDF & DOCX export',
       'Template library (8+ templates)',
       'Priority AI generation',
+      'Multi-source opportunity search',
+      'Dedicated account manager',
     ],
-    cta: 'Start Free Trial',
+    cta: 'Get Started',
     highlighted: true,
   },
   {
@@ -114,10 +119,11 @@ const pricingPlans = [
     features: [
       'Everything in Professional',
       'Multi-user team accounts',
-      'Custom templates',
+      'Custom templates & branding',
       'API access',
-      'Dedicated support',
+      'Dedicated support & onboarding',
       'SSO / SAML integration',
+      'Custom integrations',
     ],
     cta: 'Contact Sales',
     highlighted: false,
@@ -306,12 +312,17 @@ export default function LandingPage() {
                 )}
                 <h3 className="text-xl font-bold text-navy">{plan.name}</h3>
                 <p className="text-sm text-gray-400 mt-1 mb-4">{plan.description}</p>
-                <div className="mb-6">
+                <div className="mb-2">
                   <span className="text-4xl font-extrabold text-navy">{plan.price}</span>
                   {plan.period && (
                     <span className="text-gray-400 text-base">{plan.period}</span>
                   )}
                 </div>
+                {plan.cancelNote ? (
+                  <p className="text-xs text-accent font-medium mb-5">{plan.cancelNote}</p>
+                ) : (
+                  <div className="mb-5" />
+                )}
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm text-gray-600">
