@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import LandingPage from './pages/LandingPage';
 import Billing from './pages/Billing';
+import MarketResearch from './pages/MarketResearch';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -143,6 +144,7 @@ function AppRoutes() {
       >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/opportunities" element={<OpportunitySearch />} />
+        <Route path="/market-research" element={<MarketResearch />} />
         <Route path="/vendor-profile" element={<VendorProfile />} />
         <Route path="/new-proposal" element={<ProposalGenerator />} />
         <Route path="/proposal-editor" element={<ProposalEditor />} />

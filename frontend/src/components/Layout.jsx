@@ -13,12 +13,14 @@ import {
   ArrowRightStartOnRectangleIcon,
   RectangleStackIcon,
   CreditCardIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: HomeIcon },
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
+  { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
   { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
   { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
   { label: 'Templates', path: '/templates', icon: RectangleStackIcon },

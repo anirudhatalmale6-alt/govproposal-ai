@@ -86,6 +86,9 @@ sam_service = SAMService()
 from services.usaspending_service import USASpendingService
 usaspending_service = USASpendingService()
 
+from services.market_research_service import MarketResearchService
+market_research_service = MarketResearchService()
+
 
 # ============================================================
 # Startup Event — DB init + default admin user
@@ -258,6 +261,131 @@ async def search_opportunities(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to search opportunities: {exc}",
+        )
+
+
+# ============================================================
+# Market Research & Pricing Intelligence (authenticated)
+# ============================================================
+
+
+@app.get("/api/market-research/labor-rates")
+async def market_research_labor_rates(
+    labor_category: str = Query(..., description="Labor category to research (e.g. 'Software Engineer')"),
+    naics_code: Optional[str] = Query(None, description="NAICS code filter (e.g. '541512')"),
+    location: Optional[str] = Query(None, description="State or location filter"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Search for labor rate intelligence for a given category.
+
+    Returns average, min, max, and median hourly rates derived from
+    USASpending.gov award data and GSA Schedule benchmarks.
+    """
+    try:
+        result = await market_research_service.search_labor_rates(
+            labor_category=labor_category,
+            naics_code=naics_code,
+            location=location,
+        )
+        return result
+    except Exception as exc:
+        logger.error("Labor rate search failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search labor rates: {exc}",
+        )
+
+
+@app.get("/api/market-research/competitor-awards")
+async def market_research_competitor_awards(
+    naics_code: Optional[str] = Query(None, description="NAICS code filter"),
+    agency: Optional[str] = Query(None, description="Awarding agency name filter"),
+    keyword: Optional[str] = Query(None, description="Keyword to search in award descriptions"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Search historical contract awards for competitor analysis.
+
+    Returns vendor summaries, award details, and market insights.
+    At least one filter (naics_code, agency, or keyword) is recommended.
+    """
+    if not naics_code and not agency and not keyword:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one filter is required: naics_code, agency, or keyword.",
+        )
+
+    try:
+        result = await market_research_service.search_competitor_awards(
+            naics_code=naics_code,
+            agency=agency,
+            keyword=keyword,
+        )
+        return result
+    except Exception as exc:
+        logger.error("Competitor award search failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search competitor awards: {exc}",
+        )
+
+
+@app.post("/api/market-research/pricing-recommendation")
+async def market_research_pricing_recommendation(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generate AI-powered pricing strategy recommendations.
+
+    Request body:
+    {
+        "labor_categories": [
+            {"category": "Software Engineer", "rate": 145},
+            {"category": "Project Manager", "rate": 160}
+        ],
+        "competitor_data": { ... }  // optional, from competitor-awards endpoint
+    }
+
+    Returns competitive, balanced, and premium pricing strategies
+    with win probability estimates and actionable recommendations.
+    """
+    labor_categories = body.get("labor_categories", [])
+    if not labor_categories:
+        raise HTTPException(
+            status_code=400,
+            detail="labor_categories is required and must be a non-empty list of {category, rate} objects.",
+        )
+
+    # Validate each entry
+    for i, item in enumerate(labor_categories):
+        if not isinstance(item, dict) or "category" not in item or "rate" not in item:
+            raise HTTPException(
+                status_code=400,
+                detail=f"labor_categories[{i}] must have 'category' (str) and 'rate' (number) fields.",
+            )
+        try:
+            item["rate"] = float(item["rate"])
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status_code=400,
+                detail=f"labor_categories[{i}].rate must be a valid number.",
+            )
+
+    competitor_data = body.get("competitor_data")
+
+    try:
+        result = market_research_service.get_pricing_recommendation(
+            labor_categories=labor_categories,
+            competitor_data=competitor_data,
+        )
+        return result
+    except Exception as exc:
+        logger.error("Pricing recommendation failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate pricing recommendation: {exc}",
         )
 
 
