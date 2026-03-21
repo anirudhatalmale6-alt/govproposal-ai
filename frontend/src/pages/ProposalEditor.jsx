@@ -11,6 +11,8 @@ import {
   PlusIcon,
   TrashIcon,
   CurrencyDollarIcon,
+  PhotoIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -42,7 +44,7 @@ const quillModules = {
     [{ list: 'ordered' }, { list: 'bullet' }],
     [{ indent: '-1' }, { indent: '+1' }],
     [{ align: [] }],
-    ['blockquote'],
+    ['blockquote', 'image'],
     ['clean'],
   ],
 };
@@ -57,7 +59,108 @@ const quillFormats = [
   'indent',
   'align',
   'blockquote',
+  'image',
 ];
+
+// Image hints for specific sections
+const sectionImageHints = {
+  cover_page: 'Add company logo or proposal cover image',
+  executive_summary: 'Add company owner photo or key visual',
+  vendor_profile: 'Add company logo or organizational chart',
+  key_personnel: 'Add team member photos or headshots',
+  technical_approach: 'Add architecture diagrams or process flows',
+  implementation_timeline: 'Add Gantt chart or timeline graphic',
+};
+
+// Image upload component for proposal sections
+function SectionImageUpload({ sectionKey, onImageInsert }) {
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/api/upload-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const newImage = {
+          url: res.data.url,
+          filename: res.data.filename,
+          name: file.name,
+        };
+        setImages((prev) => [...prev, newImage]);
+        onImageInsert(res.data.url);
+      } catch (err) {
+        alert(`Upload failed: ${err.response?.data?.detail || err.message}`);
+      }
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeImage = async (img) => {
+    try {
+      await api.delete(`/api/upload-image/${img.filename}`);
+    } catch {
+      // ignore delete errors
+    }
+    setImages((prev) => prev.filter((i) => i.filename !== img.filename));
+  };
+
+  const hint = sectionImageHints[sectionKey];
+
+  return (
+    <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-gray-500 flex items-center gap-1.5">
+          <PhotoIcon className="w-4 h-4" />
+          Section Images
+          {hint && <span className="font-normal text-gray-400 ml-1">— {hint}</span>}
+        </p>
+        <label className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer">
+          <PlusIcon className="w-4 h-4" />
+          {uploading ? 'Uploading...' : 'Upload Image'}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleUpload}
+            className="hidden"
+            disabled={uploading}
+          />
+        </label>
+      </div>
+      {images.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {images.map((img) => (
+            <div key={img.filename} className="relative group">
+              <img
+                src={img.url}
+                alt={img.name}
+                className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-sm"
+              />
+              <button
+                onClick={() => removeImage(img)}
+                className="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                <XCircleIcon className="w-5 h-5 text-red-400 hover:text-red-600" />
+              </button>
+              <p className="text-[10px] text-gray-400 mt-0.5 truncate max-w-[80px]">{img.name}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const defaultLineItem = () => ({
   id: Date.now() + Math.random(),
@@ -340,6 +443,7 @@ export default function ProposalEditor() {
   const [activeSection, setActiveSection] = useState('');
   const [exporting, setExporting] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const quillRefs = useRef({});
 
   useEffect(() => {
     if (location.state?.proposal) {
@@ -567,6 +671,7 @@ export default function ProposalEditor() {
                     />
                   ) : (
                     <ReactQuill
+                      ref={(el) => { quillRefs.current[key] = el; }}
                       theme="snow"
                       value={sections[key]}
                       onChange={(content) => handleContentChange(key, content)}
@@ -575,6 +680,20 @@ export default function ProposalEditor() {
                     />
                   )}
                 </div>
+                {/* Image upload area for each section */}
+                <SectionImageUpload
+                  sectionKey={key}
+                  onImageInsert={(imageUrl) => {
+                    if (key === 'cost_price_proposal') return;
+                    const quill = quillRefs.current[key]?.getEditor?.();
+                    if (quill) {
+                      const range = quill.getSelection(true);
+                      const pos = range ? range.index : quill.getLength();
+                      quill.insertEmbed(pos, 'image', imageUrl);
+                      quill.setSelection(pos + 1);
+                    }
+                  }}
+                />
               </div>
             ))}
           </div>

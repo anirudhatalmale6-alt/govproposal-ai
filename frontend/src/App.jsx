@@ -12,6 +12,7 @@ import Templates from './pages/Templates';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import LandingPage from './pages/LandingPage';
+import Billing from './pages/Billing';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -147,6 +148,7 @@ function AppRoutes() {
         <Route path="/proposal-editor" element={<ProposalEditor />} />
         <Route path="/proposals" element={<Proposals />} />
         <Route path="/templates" element={<Templates />} />
+        <Route path="/billing" element={<Billing />} />
         <Route path="/admin" element={<Admin />} />
       </Route>
 

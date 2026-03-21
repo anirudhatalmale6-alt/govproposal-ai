@@ -12,6 +12,7 @@ import {
   ShieldCheckIcon,
   ArrowRightStartOnRectangleIcon,
   RectangleStackIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,6 +23,7 @@ const navItems = [
   { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
   { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
   { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
+  { label: 'Billing', path: '/billing', icon: CreditCardIcon },
 ];
 
 const tierColors = {

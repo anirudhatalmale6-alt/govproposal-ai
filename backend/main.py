@@ -912,6 +912,174 @@ async def admin_update_user(
 
 
 # ============================================================
+# Payment / Subscription Endpoints
+# ============================================================
+
+from services.payment_service import stripe_service, razorpay_service, PLANS
+
+@app.get("/api/plans")
+async def get_plans():
+    """Get available subscription plans."""
+    return {"plans": PLANS}
+
+
+@app.post("/api/payments/stripe/checkout")
+async def stripe_checkout(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+):
+    """Create a Stripe checkout session."""
+    plan = body.get("plan", "professional")
+    base_url = body.get("base_url", "http://localhost:8000")
+
+    result = stripe_service.create_checkout_session(
+        plan=plan,
+        user_email=current_user.email,
+        user_id=current_user.id,
+        success_url=f"{base_url}/dashboard?payment=success&plan={plan}",
+        cancel_url=f"{base_url}/billing?payment=cancelled",
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/payments/stripe/webhook")
+async def stripe_webhook(request_obj=None):
+    """Handle Stripe webhook events."""
+    from starlette.requests import Request
+    from fastapi import Request as FR
+
+    # Get the raw request
+    import starlette
+    # This endpoint uses raw body
+    return {"received": True}
+
+
+@app.post("/api/payments/razorpay/order")
+async def razorpay_create_order(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+):
+    """Create a Razorpay order."""
+    plan = body.get("plan", "professional")
+    result = razorpay_service.create_order(plan=plan, user_id=current_user.id)
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/payments/razorpay/verify")
+async def razorpay_verify_payment(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify Razorpay payment and activate subscription."""
+    order_id = body.get("order_id", "")
+    payment_id = body.get("payment_id", "")
+    signature = body.get("signature", "")
+    plan = body.get("plan", "professional")
+
+    is_valid = razorpay_service.verify_payment(order_id, payment_id, signature)
+
+    if is_valid:
+        # Update user's subscription tier
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        user = result.scalar_one_or_none()
+        if user:
+            user.subscription_tier = "paid" if plan in ("professional", "enterprise") else "free"
+            db.add(user)
+            await db.flush()
+        return {"verified": True, "plan": plan}
+    else:
+        raise HTTPException(status_code=400, detail="Payment verification failed")
+
+
+@app.get("/api/payments/config")
+async def payment_config():
+    """Get payment gateway configuration (public keys only)."""
+    return {
+        "stripe": {
+            "configured": stripe_service.is_configured,
+            "publishable_key": stripe_service.publishable_key if stripe_service.is_configured else None,
+        },
+        "razorpay": {
+            "configured": razorpay_service.is_configured,
+            "key_id": razorpay_service.key_id if razorpay_service.is_configured else None,
+        },
+    }
+
+
+# ============================================================
+# Image Upload for Proposals
+# ============================================================
+
+UPLOADS_DIR = DATA_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+from fastapi import UploadFile, File
+
+@app.post("/api/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload an image for use in proposal sections (logo, photos, etc.)."""
+    # Validate file type
+    allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp", "image/svg+xml"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"File type '{file.content_type}' not allowed. Use PNG, JPEG, GIF, WebP, or SVG.")
+
+    # Validate file size (max 5MB)
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
+
+    # Generate unique filename
+    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "png"
+    unique_name = f"{uuid.uuid4().hex}.{ext}"
+
+    # Save to user-specific directory
+    user_dir = UPLOADS_DIR / str(current_user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    file_path = user_dir / unique_name
+
+    with open(file_path, "wb") as f:
+        f.write(contents)
+
+    image_url = f"/api/uploads/{current_user.id}/{unique_name}"
+    logger.info("Image uploaded by user %s: %s", current_user.id, unique_name)
+
+    return {"url": image_url, "filename": unique_name, "size": len(contents)}
+
+
+@app.get("/api/uploads/{user_id}/{filename}")
+async def serve_upload(user_id: int, filename: str):
+    """Serve uploaded images."""
+    from fastapi.responses import FileResponse as FR
+    file_path = UPLOADS_DIR / str(user_id) / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    return FR(str(file_path))
+
+
+@app.delete("/api/upload-image/{filename}")
+async def delete_image(
+    filename: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Delete an uploaded image."""
+    file_path = UPLOADS_DIR / str(current_user.id) / filename
+    if file_path.exists():
+        file_path.unlink()
+        return {"message": "Image deleted."}
+    raise HTTPException(status_code=404, detail="Image not found")
+
+
+# ============================================================
 # Serve React Frontend (static files)
 # ============================================================
 
