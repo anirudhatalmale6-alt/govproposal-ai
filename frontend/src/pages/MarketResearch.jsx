@@ -536,6 +536,78 @@ function CompetitorTab() {
           </p>
         </div>
       )}
+
+      {/* Competitor Names Directory (Disabled - Pending Legal Review) */}
+      <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6 opacity-60 pointer-events-none select-none">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <UserGroupIcon className="w-5 h-5 text-navy" />
+            <h2 className="text-base font-semibold text-navy">Competitor Directory</h2>
+          </div>
+          <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
+            Coming Soon
+          </span>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Track and manage known competitors by name, NAICS specialization, past wins, and estimated pricing. This feature is currently under legal review and will be activated soon.
+        </p>
+
+        {/* Sample table structure */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-navy/5 border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-semibold text-navy text-xs uppercase tracking-wider">Competitor Name</th>
+                <th className="text-left py-3 px-4 font-semibold text-navy text-xs uppercase tracking-wider">NAICS Codes</th>
+                <th className="text-left py-3 px-4 font-semibold text-navy text-xs uppercase tracking-wider">Known Contracts</th>
+                <th className="text-left py-3 px-4 font-semibold text-navy text-xs uppercase tracking-wider">Avg Award Value</th>
+                <th className="text-left py-3 px-4 font-semibold text-navy text-xs uppercase tracking-wider">Win Rate</th>
+                <th className="text-left py-3 px-4 font-semibold text-navy text-xs uppercase tracking-wider">Last Seen</th>
+                <th className="text-left py-3 px-4 font-semibold text-navy text-xs uppercase tracking-wider">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { name: 'ABC Consulting LLC', naics: '541512, 541519', contracts: 12, avg: '$1.8M', win: '68%', last: '2025-11', notes: 'Strong in DoD' },
+                { name: 'Federal Tech Solutions', naics: '541511, 541513', contracts: 8, avg: '$3.2M', win: '54%', last: '2025-10', notes: 'GSA Schedule holder' },
+                { name: 'DataBridge Inc.', naics: '541512', contracts: 5, avg: '$950K', win: '45%', last: '2025-09', notes: 'Small business set-aside' },
+                { name: 'CyberShield Partners', naics: '541519, 541690', contracts: 15, avg: '$2.1M', win: '72%', last: '2025-12', notes: 'Cybersecurity focus' },
+                { name: 'GovCloud Services', naics: '541511, 518210', contracts: 7, avg: '$4.5M', win: '61%', last: '2025-08', notes: 'Cloud migrations' },
+              ].map((row) => (
+                <tr key={row.name} className="border-b border-gray-100">
+                  <td className="py-3 px-4 font-medium text-navy">{row.name}</td>
+                  <td className="py-3 px-4 text-gray-600">{row.naics}</td>
+                  <td className="py-3 px-4 text-gray-600">{row.contracts}</td>
+                  <td className="py-3 px-4 font-semibold text-gray-700">{row.avg}</td>
+                  <td className="py-3 px-4">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      parseInt(row.win) >= 60 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                    }`}>{row.win}</span>
+                  </td>
+                  <td className="py-3 px-4 text-gray-500">{row.last}</td>
+                  <td className="py-3 px-4 text-gray-500 text-xs">{row.notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <button disabled className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed flex items-center gap-2">
+            <PlusIcon className="w-4 h-4" />
+            Add Competitor
+          </button>
+          <button disabled className="bg-navy/10 text-navy px-4 py-2 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed">
+            Import from Awards
+          </button>
+        </div>
+
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-xs text-amber-700">
+            <span className="font-semibold">Legal Notice:</span> This feature is currently disabled pending legal review of competitor data collection and display policies. It will be activated once compliance requirements are confirmed.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
