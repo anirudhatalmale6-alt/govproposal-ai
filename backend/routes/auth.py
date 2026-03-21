@@ -55,8 +55,11 @@ def validate_password(password: str) -> str | None:
 class RegisterRequest(BaseModel):
     email: str = Field(..., description="User email address")
     password: str = Field(..., min_length=10, description="Password (min 10 characters, mixed case, digits, special chars)")
-    full_name: str = Field("", description="User's full name")
+    first_name: str = Field("", description="User's first name")
+    last_name: str = Field("", description="User's last name")
     company_name: str = Field("", description="Company name")
+    mobile_number: str = Field("", description="Mobile phone number")
+    landline_number: str = Field("", description="Landline phone number")
 
 
 class LoginRequest(BaseModel):
@@ -65,8 +68,12 @@ class LoginRequest(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
+    first_name: Optional[str] = Field(None, description="Updated first name")
+    last_name: Optional[str] = Field(None, description="Updated last name")
     full_name: Optional[str] = Field(None, description="Updated full name")
     company_name: Optional[str] = Field(None, description="Updated company name")
+    mobile_number: Optional[str] = Field(None, description="Updated mobile number")
+    landline_number: Optional[str] = Field(None, description="Updated landline number")
     email: Optional[str] = Field(None, description="Updated email")
 
 
@@ -132,11 +139,17 @@ async def register(
     verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
 
     # Create user (unverified)
+    first = request.first_name.strip()
+    last = request.last_name.strip()
     user = User(
         email=request.email.lower().strip(),
         hashed_password=hash_password(request.password),
-        full_name=request.full_name.strip(),
+        first_name=first,
+        last_name=last,
+        full_name=f"{first} {last}".strip(),
         company_name=request.company_name.strip(),
+        mobile_number=request.mobile_number.strip() or None,
+        landline_number=request.landline_number.strip() or None,
         email_verified=False,
         verification_token=verification_token,
         verification_token_expires=verification_expires,
@@ -296,11 +309,22 @@ async def update_profile(
     """
     Update the current authenticated user's profile.
     """
+    if request.first_name is not None:
+        current_user.first_name = request.first_name.strip()
+    if request.last_name is not None:
+        current_user.last_name = request.last_name.strip()
+    if request.first_name is not None or request.last_name is not None:
+        current_user.full_name = f"{current_user.first_name} {current_user.last_name}".strip()
     if request.full_name is not None:
         current_user.full_name = request.full_name.strip()
 
     if request.company_name is not None:
         current_user.company_name = request.company_name.strip()
+
+    if request.mobile_number is not None:
+        current_user.mobile_number = request.mobile_number.strip() or None
+    if request.landline_number is not None:
+        current_user.landline_number = request.landline_number.strip() or None
 
     if request.email is not None:
         new_email = request.email.lower().strip()

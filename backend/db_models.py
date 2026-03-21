@@ -42,8 +42,12 @@ class User(Base):
     id = Column(String(36), primary_key=True, default=_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
+    first_name = Column(String(255), nullable=False, default="")
+    last_name = Column(String(255), nullable=False, default="")
     full_name = Column(String(255), nullable=False, default="")
     company_name = Column(String(255), nullable=False, default="")
+    mobile_number = Column(String(50), nullable=True)
+    landline_number = Column(String(50), nullable=True)
     is_admin = Column(Boolean, default=False, nullable=False)
     subscription_tier = Column(String(20), default="free", nullable=False)  # "free" | "paid"
     stripe_customer_id = Column(String(255), nullable=True)
@@ -63,8 +67,12 @@ class User(Base):
         return {
             "id": self.id,
             "email": self.email,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
             "full_name": self.full_name,
             "company_name": self.company_name,
+            "mobile_number": self.mobile_number,
+            "landline_number": self.landline_number,
             "is_admin": self.is_admin,
             "email_verified": self.email_verified,
             "subscription_tier": self.subscription_tier,

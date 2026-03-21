@@ -114,6 +114,8 @@ async def on_startup():
                 admin_user = User(
                     email="admin@govproposal.ai",
                     hashed_password=hash_password("admin123"),
+                    first_name="System",
+                    last_name="Administrator",
                     full_name="System Administrator",
                     company_name="GovProposal AI",
                     is_admin=True,
