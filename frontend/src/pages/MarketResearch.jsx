@@ -76,6 +76,25 @@ function LaborRateTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const [inserted, setInserted] = useState(false);
+
+  const handleInsertToPricing = () => {
+    if (!results || !laborCategory.trim()) return;
+    const rate = results.suggested_rate || results.average_rate || 0;
+    const existing = JSON.parse(localStorage.getItem('pricing_labor_imports') || '[]');
+    existing.push({
+      category: laborCategory.trim(),
+      rate: rate,
+      source: 'Market Research',
+      min_rate: results.min_rate,
+      max_rate: results.max_rate,
+      avg_rate: results.average_rate,
+      timestamp: new Date().toISOString(),
+    });
+    localStorage.setItem('pricing_labor_imports', JSON.stringify(existing));
+    setInserted(true);
+    setTimeout(() => setInserted(false), 3000);
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -240,6 +259,23 @@ function LaborRateTab() {
                   : 'Competitive range'}
               </p>
             </div>
+          </div>
+
+          {/* Insert to Proposal Button */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleInsertToPricing}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-dark text-white transition-all shadow-sm hover:shadow-md cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Insert to Proposal Pricing
+            </button>
+            {inserted && (
+              <span className="flex items-center gap-1.5 text-sm text-accent font-medium animate-pulse">
+                <CheckCircleIcon className="w-4 h-4" />
+                Added! Open Pricing Table in your proposal to see it.
+              </span>
+            )}
           </div>
 
           {/* Rate Visualization Bar */}

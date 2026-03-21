@@ -181,8 +181,31 @@ function PricingTable({ onContentUpdate }) {
   const [lineItems, setLineItems] = useState([defaultLineItem()]);
   const [odcs, setOdcs] = useState([{ id: Date.now(), description: '', amount: 0 }]);
   const [notes, setNotes] = useState('');
+  const [importCount, setImportCount] = useState(0);
 
   const unitOptions = ['Hours', 'Months', 'Each', 'Lot', 'Days', 'FTE Years'];
+
+  // Import labor data from Market Research
+  const handleImportFromResearch = () => {
+    const imports = JSON.parse(localStorage.getItem('pricing_labor_imports') || '[]');
+    if (imports.length === 0) return;
+
+    const newItems = imports.map((imp, idx) => ({
+      id: Date.now() + idx,
+      clin: String(lineItems.length + idx + 1).padStart(4, '0'),
+      description: `${imp.category} (Market Research)`,
+      laborCategory: imp.category,
+      quantity: 1,
+      unit: 'Hours',
+      unitRate: imp.rate || 0,
+      total: imp.rate || 0,
+    }));
+
+    setLineItems((prev) => [...prev, ...newItems]);
+    setImportCount(imports.length);
+    localStorage.removeItem('pricing_labor_imports');
+    setTimeout(() => setImportCount(0), 4000);
+  };
 
   const updateLineItem = (id, field, value) => {
     setLineItems((prev) =>
@@ -253,7 +276,20 @@ function PricingTable({ onContentUpdate }) {
           <h3 className="text-sm font-semibold text-navy flex items-center gap-2">
             <CurrencyDollarIcon className="w-4 h-4" />
             Labor Categories & Line Items
+            {importCount > 0 && (
+              <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full animate-pulse">
+                {importCount} imported from Market Research
+              </span>
+            )}
           </h3>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleImportFromResearch}
+              className="flex items-center gap-1 text-xs font-medium text-blue hover:text-blue-dark transition-colors cursor-pointer"
+            >
+              <ArrowPathIcon className="w-3.5 h-3.5" />
+              Import from Market Research
+            </button>
           <button
             onClick={addLineItem}
             className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
@@ -261,6 +297,7 @@ function PricingTable({ onContentUpdate }) {
             <PlusIcon className="w-4 h-4" />
             Add Line Item
           </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
