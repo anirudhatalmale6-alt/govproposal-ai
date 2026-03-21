@@ -66,6 +66,7 @@ export default function ProposalGenerator() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [generating, setGenerating] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [error, setError] = useState('');
 
   // Step 1 — Vendor profile
@@ -722,10 +723,28 @@ export default function ProposalGenerator() {
             </div>
           </div>
 
+          {/* Disclaimer */}
+          <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 mb-4">
+            <p className="text-xs text-gray-500 leading-relaxed mb-3">
+              <span className="font-semibold text-gray-600">Disclaimer:</span> This application generates proposal documents based on user inputs and available data sources. All outputs are automated and may not reflect complete or fully verified information. By generating this proposal, you acknowledge that you are solely responsible for reviewing, verifying, and ensuring the accuracy and suitability of all content prior to submission. The application and its providers shall not be liable for any damages, errors, omissions, or outcomes arising from use of the generated content. All use is at your sole risk and discretion.
+            </p>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={disclaimerAccepted}
+                onChange={(e) => setDisclaimerAccepted(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent cursor-pointer"
+              />
+              <span className="text-xs text-gray-600 font-medium">
+                I have read and agree to the above disclaimer. I accept full responsibility for any decisions, submissions, or actions taken based on the generated output.
+              </span>
+            </label>
+          </div>
+
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={generating || selectedSections.length === 0}
+            disabled={generating || selectedSections.length === 0 || !disclaimerAccepted}
             className="w-full bg-accent hover:bg-accent-dark text-white py-4 rounded-xl font-semibold text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg cursor-pointer"
           >
             <SparklesIcon className="w-5 h-5" />
