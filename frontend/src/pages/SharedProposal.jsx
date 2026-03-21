@@ -90,6 +90,7 @@ export default function SharedProposal() {
   const sectionKeys = Object.keys(sections).filter((k) => sectionLabels[k]);
   const proposalTitle = proposal.opportunity_title || proposal.title || 'Untitled Proposal';
   const vendorName = proposal.vendor_name || '';
+  const opp = proposal.opportunity || data.opportunity || {};
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4">
@@ -141,6 +142,37 @@ export default function SharedProposal() {
               {vendorName && (
                 <p className="text-lg opacity-90">Prepared by: {vendorName}</p>
               )}
+
+              {/* Opportunity Details */}
+              {(opp.agency || opp.solicitation_number || opp.contact_name) && (
+                <div className="mt-5 pt-4 border-t border-white/20 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                  {opp.agency && (
+                    <div>
+                      <span className="opacity-60 text-xs uppercase tracking-wide">Agency</span>
+                      <p className="font-semibold">{opp.agency}</p>
+                    </div>
+                  )}
+                  {opp.solicitation_number && (
+                    <div>
+                      <span className="opacity-60 text-xs uppercase tracking-wide">Solicitation / RFP Number</span>
+                      <p className="font-semibold">{opp.solicitation_number}</p>
+                    </div>
+                  )}
+                  {opp.contact_name && (
+                    <div>
+                      <span className="opacity-60 text-xs uppercase tracking-wide">Contracting Officer</span>
+                      <p className="font-semibold">{opp.contact_name}</p>
+                    </div>
+                  )}
+                  {opp.contact_email && (
+                    <div>
+                      <span className="opacity-60 text-xs uppercase tracking-wide">Contact Email</span>
+                      <p className="font-semibold">{opp.contact_email}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="mt-4 flex items-center gap-4 text-sm opacity-70">
                 <span>Sections: {sectionKeys.length}</span>
                 <span>|</span>

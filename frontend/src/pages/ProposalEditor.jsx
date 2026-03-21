@@ -496,6 +496,7 @@ export default function ProposalEditor() {
   const [sharingLoading, setSharingLoading] = useState(false);
   const [copiedToken, setCopiedToken] = useState(null);
   const [proposalId, setProposalId] = useState(null);
+  const [opportunityDetails, setOpportunityDetails] = useState({});
   const quillRefs = useRef({});
 
   useEffect(() => {
@@ -506,6 +507,11 @@ export default function ProposalEditor() {
       if (proposalData.id || proposalData.proposal_id) setProposalId(proposalData.id || proposalData.proposal_id);
       if (proposalData.opportunity_title) setProposalTitle(proposalData.opportunity_title);
       if (proposalData.vendor_name) setVendorName(proposalData.vendor_name);
+
+      // Store opportunity details for cover page
+      if (location.state?.opportunity) {
+        setOpportunityDetails(location.state.opportunity);
+      }
 
       const parsed = {};
       const titles = {};
@@ -959,6 +965,49 @@ export default function ProposalEditor() {
                     {vendorName && (
                       <p className="text-lg opacity-90">Prepared by: {vendorName}</p>
                     )}
+
+                    {/* Opportunity Details */}
+                    {(opportunityDetails.agency || opportunityDetails.solicitation_number || opportunityDetails.contact_name) && (
+                      <div className="mt-5 pt-4 border-t border-white/20 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                        {opportunityDetails.agency && (
+                          <div>
+                            <span className="opacity-60 text-xs uppercase tracking-wide">Agency</span>
+                            <p className="font-semibold">{opportunityDetails.agency}</p>
+                          </div>
+                        )}
+                        {opportunityDetails.solicitation_number && (
+                          <div>
+                            <span className="opacity-60 text-xs uppercase tracking-wide">Solicitation / RFP Number</span>
+                            <p className="font-semibold">{opportunityDetails.solicitation_number}</p>
+                          </div>
+                        )}
+                        {opportunityDetails.contact_name && (
+                          <div>
+                            <span className="opacity-60 text-xs uppercase tracking-wide">Contracting Officer</span>
+                            <p className="font-semibold">{opportunityDetails.contact_name}</p>
+                          </div>
+                        )}
+                        {opportunityDetails.contact_email && (
+                          <div>
+                            <span className="opacity-60 text-xs uppercase tracking-wide">Contact Email</span>
+                            <p className="font-semibold">{opportunityDetails.contact_email}</p>
+                          </div>
+                        )}
+                        {opportunityDetails.contact_phone && (
+                          <div>
+                            <span className="opacity-60 text-xs uppercase tracking-wide">Contact Phone</span>
+                            <p className="font-semibold">{opportunityDetails.contact_phone}</p>
+                          </div>
+                        )}
+                        {opportunityDetails.contact_address && (
+                          <div className="sm:col-span-2">
+                            <span className="opacity-60 text-xs uppercase tracking-wide">Office Address</span>
+                            <p className="font-semibold">{opportunityDetails.contact_address}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="mt-4 flex items-center gap-4 text-sm opacity-70">
                       <span>Sections: {sectionKeys.length}</span>
                       <span>|</span>
