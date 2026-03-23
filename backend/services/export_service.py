@@ -107,10 +107,14 @@ def generate_docx(proposal: Dict) -> io.BytesIO:
 
         doc.add_page_break()
 
-        # --- Content Sections ---
+        # --- Content Sections (each on a new page) ---
         for idx, (section_key, section_data) in enumerate(sections.items(), start=1):
             section_title = section_data.get("title", section_key.replace("_", " ").title())
             content = section_data.get("content", "")
+
+            # Page break before each section (first already follows TOC break)
+            if idx > 1:
+                doc.add_page_break()
 
             # Section heading
             heading = doc.add_heading(f"{idx}. {section_title}", level=1)
@@ -320,10 +324,14 @@ def generate_pdf(proposal: Dict) -> io.BytesIO:
 
         story.append(PageBreak())
 
-        # --- Content Sections ---
+        # --- Content Sections (each on a new page) ---
         for idx, (section_key, section_data) in enumerate(sections.items(), start=1):
             section_title = section_data.get("title", section_key.replace("_", " ").title())
             content = section_data.get("content", "")
+
+            # Page break before each section (first section already follows TOC page break)
+            if idx > 1:
+                story.append(PageBreak())
 
             # Section header with horizontal rule effect
             story.append(Paragraph(
