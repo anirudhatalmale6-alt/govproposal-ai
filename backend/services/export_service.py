@@ -4,7 +4,9 @@ Export service for generating DOCX and PDF files from proposal content.
 
 import io
 import logging
+import re
 from typing import Dict
+from html import unescape as html_unescape
 
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -115,34 +117,26 @@ def generate_docx(proposal: Dict) -> io.BytesIO:
             for run in heading.runs:
                 run.font.color.rgb = RGBColor(0, 51, 102)
 
-            # Section content - split by paragraphs
-            paragraphs = content.split("\n")
-            for para_text in paragraphs:
-                para_text = para_text.strip()
-                if not para_text:
-                    continue
+            # Parse HTML content into structured paragraphs
+            parsed = _html_to_paragraphs(content)
+            for para in parsed:
+                ptype = para['type']
+                ptext = para['text']
 
-                # Check if it looks like a sub-heading (starts with ## or is all caps short line)
-                if para_text.startswith("## "):
-                    sub_heading = doc.add_heading(para_text.replace("## ", ""), level=2)
+                if ptype == 'spacer':
+                    continue
+                elif ptype in ('h1', 'h2'):
+                    sub_heading = doc.add_heading(_strip_markdown_bold(ptext), level=2)
                     for run in sub_heading.runs:
                         run.font.color.rgb = RGBColor(0, 76, 153)
-                elif para_text.startswith("### "):
-                    sub_heading = doc.add_heading(para_text.replace("### ", ""), level=3)
-                elif para_text.startswith("# "):
-                    sub_heading = doc.add_heading(para_text.replace("# ", ""), level=2)
-                    for run in sub_heading.runs:
-                        run.font.color.rgb = RGBColor(0, 76, 153)
-                elif para_text.startswith("- ") or para_text.startswith("* "):
-                    # Bullet point
-                    bullet_text = para_text[2:].strip()
-                    # Handle bold markers in bullet text
-                    bullet_text = _strip_markdown_bold(bullet_text)
-                    doc.add_paragraph(bullet_text, style="List Bullet")
+                elif ptype == 'h3':
+                    doc.add_heading(_strip_markdown_bold(ptext), level=3)
+                elif ptype == 'bullet':
+                    doc.add_paragraph(_strip_markdown_bold(ptext), style="List Bullet")
                 else:
-                    # Regular paragraph - strip markdown bold markers
-                    clean_text = _strip_markdown_bold(para_text)
-                    doc.add_paragraph(clean_text)
+                    clean_text = _strip_markdown_bold(ptext)
+                    if clean_text:
+                        doc.add_paragraph(clean_text)
 
             # Add spacing between sections
             doc.add_paragraph("")
@@ -347,37 +341,32 @@ def generate_pdf(proposal: Dict) -> io.BytesIO:
             story.append(line_table)
             story.append(Spacer(1, 0.15 * inch))
 
-            # Parse and add content paragraphs
-            paragraphs = content.split("\n")
-            for para_text in paragraphs:
-                para_text = para_text.strip()
-                if not para_text:
+            # Parse HTML content into structured paragraphs
+            parsed = _html_to_paragraphs(content)
+            for para in parsed:
+                ptype = para['type']
+                ptext = para['text']
+
+                if ptype == 'spacer':
                     story.append(Spacer(1, 4))
-                    continue
-
-                safe_text = _escape_xml(para_text)
-
-                if para_text.startswith("## ") or para_text.startswith("# "):
-                    heading_text = para_text.lstrip("# ").strip()
+                elif ptype in ('h1', 'h2'):
                     story.append(Paragraph(
-                        _escape_xml(heading_text),
+                        _escape_xml(ptext),
                         styles["SubHeading"],
                     ))
-                elif para_text.startswith("### "):
-                    heading_text = para_text.replace("### ", "").strip()
+                elif ptype == 'h3':
                     story.append(Paragraph(
-                        f"<b>{_escape_xml(heading_text)}</b>",
+                        f"<b>{_escape_xml(ptext)}</b>",
                         styles["ProposalBody"],
                     ))
-                elif para_text.startswith("- ") or para_text.startswith("* "):
-                    bullet_text = para_text[2:].strip()
-                    bullet_text = _markdown_bold_to_reportlab(bullet_text)
+                elif ptype == 'bullet':
+                    bullet_text = _markdown_bold_to_reportlab(ptext)
                     story.append(Paragraph(
                         f"\u2022  {bullet_text}",
                         styles["ProposalBullet"],
                     ))
                 else:
-                    formatted_text = _markdown_bold_to_reportlab(para_text)
+                    formatted_text = _markdown_bold_to_reportlab(ptext)
                     story.append(Paragraph(formatted_text, styles["ProposalBody"]))
 
             story.append(Spacer(1, 0.3 * inch))
@@ -403,15 +392,72 @@ def _escape_xml(text: str) -> str:
 
 def _strip_markdown_bold(text: str) -> str:
     """Remove markdown bold markers (**text**) for DOCX output."""
-    import re
     return re.sub(r"\*\*(.+?)\*\*", r"\1", text)
 
 
 def _markdown_bold_to_reportlab(text: str) -> str:
     """Convert markdown bold (**text**) to ReportLab <b>text</b> tags."""
-    import re
     # First escape XML entities
     text = _escape_xml(text)
     # Then convert bold markers (after escaping, so ** are still intact)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     return text
+
+
+def _html_to_paragraphs(html_content: str) -> list:
+    """
+    Convert HTML content (from ReactQuill) into a list of paragraph dicts.
+    Each dict has: 'type' (heading, bullet, text), 'text' (plain text), 'bold' (bool).
+    """
+    if not html_content:
+        return []
+
+    paragraphs = []
+
+    # Replace <br> and <br/> with newlines
+    text = re.sub(r'<br\s*/?>', '\n', html_content)
+
+    # Convert <strong> and <b> to markdown bold for later processing
+    text = re.sub(r'<(?:strong|b)>(.*?)</(?:strong|b)>', r'**\1**', text, flags=re.DOTALL)
+
+    # Convert <em> and <i> to markdown italic
+    text = re.sub(r'<(?:em|i)>(.*?)</(?:em|i)>', r'_\1_', text, flags=re.DOTALL)
+
+    # Extract list items
+    text = re.sub(r'<li>(.*?)</li>', r'\n- \1\n', text, flags=re.DOTALL)
+
+    # Extract headings
+    for level in range(1, 4):
+        text = re.sub(
+            rf'<h{level}[^>]*>(.*?)</h{level}>',
+            lambda m, l=level: f'\n{"#" * l} {m.group(1).strip()}\n',
+            text,
+            flags=re.DOTALL,
+        )
+
+    # Remove all remaining HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+
+    # Decode HTML entities
+    text = html_unescape(text)
+
+    # Clean up multiple newlines
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    # Split into lines
+    for line in text.split('\n'):
+        line = line.strip()
+        if not line:
+            paragraphs.append({'type': 'spacer', 'text': ''})
+        elif line.startswith('### '):
+            paragraphs.append({'type': 'h3', 'text': line[4:].strip()})
+        elif line.startswith('## '):
+            paragraphs.append({'type': 'h2', 'text': line[3:].strip()})
+        elif line.startswith('# '):
+            paragraphs.append({'type': 'h1', 'text': line[2:].strip()})
+        elif line.startswith('- ') or line.startswith('* '):
+            paragraphs.append({'type': 'bullet', 'text': line[2:].strip()})
+        else:
+            paragraphs.append({'type': 'text', 'text': line})
+
+    return paragraphs

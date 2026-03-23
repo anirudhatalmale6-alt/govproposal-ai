@@ -16,3 +16,4 @@ passlib[bcrypt]
 bcrypt==4.2.*
 stripe
 razorpay
+httpx
