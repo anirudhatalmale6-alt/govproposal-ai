@@ -23,7 +23,7 @@ from services.auth_service import (
     create_access_token,
     get_current_user,
 )
-from services.email_service import send_verification_email
+from services.email_service import send_verification_email, SMTP_HOST, SMTP_USER
 
 logger = logging.getLogger(__name__)
 
@@ -134,11 +134,14 @@ async def register(
             detail="A user with this email already exists.",
         )
 
+    # Determine if SMTP is configured — if not, auto-verify for demo
+    smtp_configured = bool(SMTP_HOST and SMTP_USER)
+
     # Generate verification token
     verification_token = secrets.token_urlsafe(32)
     verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
 
-    # Create user (unverified)
+    # Create user
     first = request.first_name.strip()
     last = request.last_name.strip()
     user = User(
@@ -150,27 +153,37 @@ async def register(
         company_name=request.company_name.strip(),
         mobile_number=request.mobile_number.strip() or None,
         landline_number=request.landline_number.strip() or None,
-        email_verified=False,
-        verification_token=verification_token,
-        verification_token_expires=verification_expires,
+        email_verified=not smtp_configured,  # Auto-verify if no SMTP
+        verification_token=verification_token if smtp_configured else None,
+        verification_token_expires=verification_expires if smtp_configured else None,
     )
     db.add(user)
     await db.flush()  # Populate the id
 
-    # Send verification email
-    try:
-        await send_verification_email(user.email, verification_token, user.full_name)
-        logger.info("Verification email sent to: %s", user.email)
-    except Exception as e:
-        logger.warning("Failed to send verification email to %s: %s", user.email, e)
-
-    logger.info("New user registered (pending verification): %s (%s)", user.email, user.id)
-
-    return RegisterResponse(
-        message="Account created. Please check your email to verify your account.",
-        user=user.to_dict(),
-        requires_verification=True,
-    )
+    if smtp_configured:
+        # Send verification email
+        try:
+            await send_verification_email(user.email, verification_token, user.full_name)
+            logger.info("Verification email sent to: %s", user.email)
+        except Exception as e:
+            logger.warning("Failed to send verification email to %s: %s", user.email, e)
+        logger.info("New user registered (pending verification): %s (%s)", user.email, user.id)
+        return RegisterResponse(
+            message="Account created. Please check your email to verify your account.",
+            user=user.to_dict(),
+            requires_verification=True,
+        )
+    else:
+        # No SMTP — auto-verify and return token so user can log in immediately
+        token = create_access_token(data={"sub": user.id, "email": user.email})
+        logger.info("New user registered (auto-verified, no SMTP): %s (%s)", user.email, user.id)
+        return {
+            "message": "Account created successfully!",
+            "user": user.to_dict(),
+            "requires_verification": False,
+            "token": token,
+            "token_type": "bearer",
+        }
 
 
 @router.post("/verify-email")

@@ -8,6 +8,7 @@ import {
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const PASSWORD_RULES = [
   { label: 'At least 10 characters', test: (p) => p.length >= 10 },
@@ -19,6 +20,7 @@ const PASSWORD_RULES = [
 
 export default function Register() {
   const navigate = useNavigate();
+  const { loginWithToken } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -59,7 +61,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await api.post('/api/auth/register', {
+      const res = await api.post('/api/auth/register', {
         email,
         password,
         first_name: firstName,
@@ -68,6 +70,12 @@ export default function Register() {
         mobile_number: mobileNumber,
         landline_number: landlineNumber,
       });
+      if (res.data.requires_verification === false && res.data.token) {
+        // Auto-verified (no SMTP) — log in directly
+        loginWithToken(res.data.token, res.data.user);
+        navigate('/dashboard');
+        return;
+      }
       setRegisteredEmail(email);
       setRegistered(true);
     } catch (err) {
