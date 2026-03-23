@@ -110,7 +110,20 @@ function LaborRateTab() {
       if (location.trim()) params.location = location.trim();
 
       const response = await api.get('/api/market-research/labor-rates', { params });
-      setResults(response.data);
+      const data = response.data;
+      const rs = data.rate_summary || {};
+      const bm = data.benchmark || {};
+      setResults({
+        ...data,
+        average_rate: rs.average_hourly_rate || bm.median || 0,
+        min_rate: rs.min_hourly_rate || bm.min || 0,
+        max_rate: rs.max_hourly_rate || bm.max || 0,
+        median_rate: rs.median_hourly_rate || bm.median || 0,
+        suggested_rate: bm.median || rs.median_hourly_rate || rs.average_hourly_rate || 0,
+        suggested_range_low: bm.min || rs.min_hourly_rate || 0,
+        suggested_range_high: bm.max || rs.max_hourly_rate || 0,
+        data_points: rs.data_points || 0,
+      });
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -390,7 +403,15 @@ function CompetitorTab() {
       if (naicsCode.trim()) params.naics_code = naicsCode.trim();
 
       const response = await api.get('/api/market-research/competitor-awards', { params });
-      setResults(response.data.awards || response.data || []);
+      const awards = (response.data.awards || []).map((a) => ({
+        ...a,
+        vendor_name: a.recipient || a.vendor_name || 'Unknown Vendor',
+        award_value: a.amount || a.award_value || 0,
+        naics_code: a.naics || a.naics_code || '',
+        award_date: a.start_date || a.award_date || '',
+        id: a.award_id || a.id || '',
+      }));
+      setResults(awards);
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -655,6 +676,26 @@ function PricingStrategyTab() {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedStrategy, setSelectedStrategy] = useState(null);
+  const [inserted, setInserted] = useState(false);
+
+  const handleInsertToPricing = (stratKey) => {
+    const strategy = results?.strategies?.[stratKey];
+    if (!strategy?.rates?.length) return;
+    const existing = JSON.parse(localStorage.getItem('pricing_labor_imports') || '[]');
+    strategy.rates.forEach((r) => {
+      existing.push({
+        category: r.category,
+        rate: r.recommended_rate || r.rate || 0,
+        source: `Market Research (${stratKey})`,
+        timestamp: new Date().toISOString(),
+      });
+    });
+    localStorage.setItem('pricing_labor_imports', JSON.stringify(existing));
+    setInserted(true);
+    setSelectedStrategy(stratKey);
+    setTimeout(() => { setInserted(false); setSelectedStrategy(null); }, 3000);
+  };
 
   const addRow = () => {
     setRows((prev) => [...prev, { category: '', rate: '' }]);
@@ -687,7 +728,26 @@ function PricingStrategyTab() {
       const response = await api.post('/api/market-research/pricing-recommendation', {
         labor_categories,
       });
-      setResults(response.data);
+      // Normalize field names from backend
+      const data = response.data;
+      if (data.strategies) {
+        for (const key of Object.keys(data.strategies)) {
+          const s = data.strategies[key];
+          // Map estimated_win_probability string to win_probability number
+          if (s.estimated_win_probability && s.win_probability == null) {
+            const match = String(s.estimated_win_probability).match(/(\d+)/);
+            s.win_probability = match ? parseInt(match[1]) : null;
+          }
+          // Map suggested_rate to recommended_rate in rates array
+          if (s.rates) {
+            s.rates = s.rates.map((r) => ({
+              ...r,
+              recommended_rate: r.recommended_rate || r.suggested_rate || r.rate || 0,
+            }));
+          }
+        }
+      }
+      setResults(data);
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -909,6 +969,31 @@ function PricingStrategyTab() {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Insert to Pricing Button */}
+                  <div className="mt-4 pt-3 border-t border-gray-200/50">
+                    <button
+                      onClick={() => handleInsertToPricing(stratKey)}
+                      disabled={inserted && selectedStrategy === stratKey}
+                      className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        inserted && selectedStrategy === stratKey
+                          ? 'bg-green-100 text-green-700 border border-green-300'
+                          : 'bg-white/80 hover:bg-white text-navy border border-gray-200 hover:border-navy/30 hover:shadow-sm'
+                      }`}
+                    >
+                      {inserted && selectedStrategy === stratKey ? (
+                        <>
+                          <CheckCircleIcon className="w-4 h-4" />
+                          Inserted to Pricing!
+                        </>
+                      ) : (
+                        <>
+                          <PlusIcon className="w-4 h-4" />
+                          Insert to Proposal Pricing
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               );
