@@ -157,7 +157,7 @@ export default function VendorProfile() {
   const addBranch = () => {
     setProfile((prev) => ({
       ...prev,
-      branches: [...(prev.branches || []), { name: '', address: '' }],
+      branches: [...(prev.branches || []), { name: '', line1: '', line2: '', city: '', state: '', zip: '', country: '' }],
     }));
     setSuccess('');
     setError('');
@@ -553,7 +553,7 @@ export default function VendorProfile() {
                         <TrashIcon className="w-4 h-4" />
                       </button>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
-                        <div>
+                        <div className="md:col-span-2">
                           <label className="block text-xs font-medium text-gray-500 mb-1">
                             Branch Name
                           </label>
@@ -565,15 +565,75 @@ export default function VendorProfile() {
                             className={inputClass}
                           />
                         </div>
-                        <div>
+                        <div className="md:col-span-2">
                           <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Branch Address
+                            Address Line 1
                           </label>
                           <input
                             type="text"
-                            value={branch.address}
-                            onChange={(e) => updateBranch(index, 'address', e.target.value)}
-                            placeholder="Full address..."
+                            value={branch.line1 || ''}
+                            onChange={(e) => updateBranch(index, 'line1', e.target.value)}
+                            placeholder="Address Line 1"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Address Line 2
+                          </label>
+                          <input
+                            type="text"
+                            value={branch.line2 || ''}
+                            onChange={(e) => updateBranch(index, 'line2', e.target.value)}
+                            placeholder="Address Line 2 (optional)"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            value={branch.city || ''}
+                            onChange={(e) => updateBranch(index, 'city', e.target.value)}
+                            placeholder="City"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            State
+                          </label>
+                          <input
+                            type="text"
+                            value={branch.state || ''}
+                            onChange={(e) => updateBranch(index, 'state', e.target.value)}
+                            placeholder="State"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Zip Code
+                          </label>
+                          <input
+                            type="text"
+                            value={branch.zip || ''}
+                            onChange={(e) => updateBranch(index, 'zip', e.target.value)}
+                            placeholder="Zip Code"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Country
+                          </label>
+                          <input
+                            type="text"
+                            value={branch.country || ''}
+                            onChange={(e) => updateBranch(index, 'country', e.target.value)}
+                            placeholder="Country"
                             className={inputClass}
                           />
                         </div>
