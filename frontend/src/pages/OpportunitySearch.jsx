@@ -6,6 +6,7 @@ import {
   CalendarDaysIcon,
   TagIcon,
   ArrowRightIcon,
+  FunnelIcon,
   ExclamationTriangleIcon,
   GlobeAltIcon,
   PlusIcon,
@@ -18,6 +19,7 @@ import api from '../services/api';
 export default function OpportunitySearch() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
+  const [naicsCode, setNaicsCode] = useState('');
   const [searchSource, setSearchSource] = useState('all');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,12 @@ export default function OpportunitySearch() {
       if (saved) {
         const parsed = JSON.parse(saved);
         const codes = parsed.naics_codes || [];
-        setProfileNaicsCodes(Array.isArray(codes) ? codes : []);
+        const codeArray = Array.isArray(codes) ? codes : [];
+        setProfileNaicsCodes(codeArray);
+        // Pre-fill the NAICS input with codes from vendor profile
+        if (codeArray.length > 0) {
+          setNaicsCode(codeArray.join(', '));
+        }
       }
     } catch {
       // ignore
@@ -94,10 +101,10 @@ export default function OpportunitySearch() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!keyword.trim()) return;
+    if (!keyword.trim() && !naicsCode.trim()) return;
 
     // Show warning if no NAICS codes in vendor profile
-    if (profileNaicsCodes.length === 0) {
+    if (profileNaicsCodes.length === 0 && !naicsCode.trim()) {
       setShowNaicsWarning(true);
     }
 
@@ -108,10 +115,7 @@ export default function OpportunitySearch() {
     try {
       const params = { source: searchSource };
       if (keyword.trim()) params.keyword = keyword.trim();
-      // Auto-use first NAICS code from vendor profile
-      if (profileNaicsCodes.length > 0) {
-        params.naics = profileNaicsCodes[0];
-      }
+      if (naicsCode.trim()) params.naics = naicsCode.trim().split(',')[0].trim();
 
       const response = await api.get('/api/opportunities', { params });
       setResults(response.data.opportunities || response.data || []);
@@ -336,7 +340,7 @@ export default function OpportunitySearch() {
       {/* Search Form */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
         <form onSubmit={handleSearch}>
-          <div className="mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             {/* Keyword Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -349,6 +353,26 @@ export default function OpportunitySearch() {
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="e.g., cybersecurity, IT modernization, cloud services"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+            </div>
+
+            {/* NAICS Code Input - pre-filled from Vendor Profile */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                NAICS Code
+                {profileNaicsCodes.length > 0 && (
+                  <span className="text-xs text-accent font-normal ml-2">(from Vendor Profile)</span>
+                )}
+              </label>
+              <div className="relative">
+                <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={naicsCode}
+                  onChange={(e) => setNaicsCode(e.target.value)}
+                  placeholder="e.g., 541512, 541519"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
                 />
               </div>
@@ -383,7 +407,7 @@ export default function OpportunitySearch() {
 
           <button
             type="submit"
-            disabled={loading || !keyword.trim()}
+            disabled={loading || (!keyword.trim() && !naicsCode.trim())}
             className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow-md"
           >
             {loading ? (
