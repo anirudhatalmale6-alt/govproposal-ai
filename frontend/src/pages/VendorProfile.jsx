@@ -63,6 +63,100 @@ const clearanceLevelOptions = [
 
 const samStatusOptions = ['Active', 'Inactive', 'Expired', 'Not Registered'];
 
+const INPUT_CLASS =
+  'w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all';
+const SELECT_CLASS = `${INPUT_CLASS} bg-white`;
+const LABEL_CLASS = 'block text-sm font-medium text-gray-700 mb-1.5';
+
+// Section wrapper — defined outside component to avoid re-mount on every render
+function Section({ icon: Icon, title, children }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+      <h2 className="text-lg font-semibold text-navy mb-5 flex items-center gap-2">
+        <Icon className="w-5 h-5" />
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+// Team member card — defined outside component to avoid re-mount on every render
+function TeamMemberCard({ member, field, index, onUpdate, onRemove, onImageUpload }) {
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 relative">
+      <button
+        type="button"
+        onClick={() => onRemove(field, index)}
+        className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
+      >
+        <TrashIcon className="w-4 h-4" />
+      </button>
+      <div className="flex gap-4">
+        <div className="flex-shrink-0">
+          {member.photo ? (
+            <div className="relative group">
+              <img
+                src={member.photo}
+                alt={member.name || 'Team member'}
+                className="w-20 h-24 object-cover rounded-lg border border-gray-200"
+              />
+              <button
+                type="button"
+                onClick={() => onUpdate(field, index, 'photo', '')}
+                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                <TrashIcon className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onImageUpload((img) => onUpdate(field, index, 'photo', img))}
+              className="w-20 h-24 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-white hover:border-gray-400 transition-colors cursor-pointer"
+            >
+              <PhotoIcon className="w-6 h-6 text-gray-300" />
+              <span className="text-[10px] text-gray-400 mt-1">Photo</span>
+            </button>
+          )}
+        </div>
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
+            <input
+              type="text"
+              value={member.name || ''}
+              onChange={(e) => onUpdate(field, index, 'name', e.target.value)}
+              placeholder="Full Name"
+              className={INPUT_CLASS}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Designation</label>
+            <input
+              type="text"
+              value={member.designation || ''}
+              onChange={(e) => onUpdate(field, index, 'designation', e.target.value)}
+              placeholder="e.g., CEO, CTO, VP Operations"
+              className={INPUT_CLASS}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-500 mb-1">Experience & About</label>
+            <textarea
+              value={member.about || ''}
+              onChange={(e) => onUpdate(field, index, 'about', e.target.value)}
+              placeholder="Brief description of experience, expertise, and background..."
+              rows={2}
+              className={`${INPUT_CLASS} resize-y`}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const certificationOptions = [
   'ISO 9001',
   'ISO 27001',
@@ -281,95 +375,9 @@ export default function VendorProfile() {
     }
   };
 
-  const inputClass =
-    'w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all';
-  const selectClass = `${inputClass} bg-white`;
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5';
-
-  // Section wrapper
-  const Section = ({ icon: Icon, title, children }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-      <h2 className="text-lg font-semibold text-navy mb-5 flex items-center gap-2">
-        <Icon className="w-5 h-5" />
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-
-  // Team member card
-  const TeamMemberCard = ({ member, field, index }) => (
-    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 relative">
-      <button
-        type="button"
-        onClick={() => removeArrayItem(field, index)}
-        className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
-      >
-        <TrashIcon className="w-4 h-4" />
-      </button>
-      <div className="flex gap-4">
-        <div className="flex-shrink-0">
-          {member.photo ? (
-            <div className="relative group">
-              <img
-                src={member.photo}
-                alt={member.name || 'Team member'}
-                className="w-20 h-24 object-cover rounded-lg border border-gray-200"
-              />
-              <button
-                type="button"
-                onClick={() => updateArrayItem(field, index, 'photo', '')}
-                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              >
-                <TrashIcon className="w-3 h-3" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => handleImageUpload((img) => updateArrayItem(field, index, 'photo', img))}
-              className="w-20 h-24 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-white hover:border-gray-400 transition-colors cursor-pointer"
-            >
-              <PhotoIcon className="w-6 h-6 text-gray-300" />
-              <span className="text-[10px] text-gray-400 mt-1">Photo</span>
-            </button>
-          )}
-        </div>
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
-            <input
-              type="text"
-              value={member.name || ''}
-              onChange={(e) => updateArrayItem(field, index, 'name', e.target.value)}
-              placeholder="Full Name"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Designation</label>
-            <input
-              type="text"
-              value={member.designation || ''}
-              onChange={(e) => updateArrayItem(field, index, 'designation', e.target.value)}
-              placeholder="e.g., CEO, CTO, VP Operations"
-              className={inputClass}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Experience & About</label>
-            <textarea
-              value={member.about || ''}
-              onChange={(e) => updateArrayItem(field, index, 'about', e.target.value)}
-              placeholder="Brief description of experience, expertise, and background..."
-              rows={2}
-              className={`${inputClass} resize-y`}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const inputClass = INPUT_CLASS;
+  const selectClass = SELECT_CLASS;
+  const labelClass = LABEL_CLASS;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -533,7 +541,7 @@ export default function VendorProfile() {
             ) : (
               <div className="space-y-3">
                 {(profile.management_team || []).map((member, i) => (
-                  <TeamMemberCard key={i} member={member} field="management_team" index={i} />
+                  <TeamMemberCard key={i} member={member} field="management_team" index={i} onUpdate={updateArrayItem} onRemove={removeArrayItem} onImageUpload={handleImageUpload} />
                 ))}
               </div>
             )}
@@ -558,7 +566,7 @@ export default function VendorProfile() {
             ) : (
               <div className="space-y-3">
                 {(profile.executive_team || []).map((member, i) => (
-                  <TeamMemberCard key={i} member={member} field="executive_team" index={i} />
+                  <TeamMemberCard key={i} member={member} field="executive_team" index={i} onUpdate={updateArrayItem} onRemove={removeArrayItem} onImageUpload={handleImageUpload} />
                 ))}
               </div>
             )}
