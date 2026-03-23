@@ -19,6 +19,8 @@ import {
   BoltIcon,
   ScaleIcon,
   StarIcon,
+  DocumentTextIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -409,7 +411,11 @@ function CompetitorTab() {
         award_value: a.amount || a.award_value || 0,
         naics_code: a.naics || a.naics_code || '',
         award_date: a.start_date || a.award_date || '',
+        end_date: a.end_date || '',
         id: a.award_id || a.id || '',
+        contract_type: a.contract_type || '',
+        sub_agency: a.sub_agency || '',
+        detail_url: a.detail_url || null,
       }));
       setResults(awards);
     } catch (err) {
@@ -540,42 +546,80 @@ function CompetitorTab() {
                   key={award.id || index}
                   className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all hover:border-blue/20"
                 >
-                  {/* Vendor Name */}
-                  <div className="flex items-start justify-between mb-3">
+                  {/* Vendor Name & NAICS */}
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-navy text-base truncate">
                         {award.vendor_name || 'Unknown Vendor'}
                       </h3>
+                      {award.contract_type && (
+                        <p className="text-xs text-gray-400 mt-0.5">{award.contract_type}</p>
+                      )}
                     </div>
-                    {award.naics_code && (
-                      <span className="bg-blue/10 text-blue px-2.5 py-0.5 rounded-full text-xs font-medium ml-3 flex-shrink-0">
-                        {award.naics_code}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                      {award.naics_code && (
+                        <span className="bg-blue/10 text-blue px-2.5 py-0.5 rounded-full text-xs font-medium">
+                          {award.naics_code}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Description */}
                   {award.description && (
-                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">{award.description}</p>
+                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">{award.description}</p>
                   )}
 
-                  {/* Award Value */}
-                  <div className="bg-navy/5 rounded-lg px-4 py-3 mb-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Award Value</p>
-                    <p className="text-2xl font-bold text-navy">{formatCurrency(award.award_value)}</p>
+                  {/* Award Value & Period */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="bg-navy/5 rounded-lg px-3 py-2.5">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Award Value</p>
+                      <p className="text-lg font-bold text-navy">{formatCurrency(award.award_value)}</p>
+                    </div>
+                    <div className="bg-navy/5 rounded-lg px-3 py-2.5">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Contract Period</p>
+                      <p className="text-sm font-semibold text-navy">
+                        {formatDate(award.award_date)}
+                        {award.end_date ? ` — ${formatDate(award.end_date)}` : ''}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Meta Info */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <BuildingLibraryIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <span className="truncate">{award.agency || 'Unknown Agency'}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <CalendarDaysIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span>Awarded: {formatDate(award.award_date)}</span>
-                    </div>
+                    {award.sub_agency && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <span className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate text-xs">{award.sub_agency}</span>
+                      </div>
+                    )}
+                    {award.id && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <TagIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="text-xs">Award ID: {award.id}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* View Details Link */}
+                  {award.detail_url && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <a
+                        href={award.detail_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-blue hover:text-blue-dark transition-colors"
+                      >
+                        <DocumentTextIcon className="w-4 h-4" />
+                        View Full Contract Details on USASpending.gov
+                        <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

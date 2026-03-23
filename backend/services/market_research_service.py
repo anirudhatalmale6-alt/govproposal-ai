@@ -289,16 +289,25 @@ class MarketResearchService:
     def _format_award_summary(award: Dict) -> Dict:
         """Format a raw USASpending award into a concise summary."""
         amount = award.get("Award Amount")
+        internal_id = award.get("generated_internal_id", "")
+        detail_url = (
+            f"https://www.usaspending.gov/award/{internal_id}/"
+            if internal_id
+            else None
+        )
         return {
             "award_id": award.get("Award ID", ""),
             "recipient": award.get("Recipient Name", "Unknown"),
             "agency": award.get("Awarding Agency", "Unknown"),
+            "sub_agency": award.get("Awarding Sub Agency", ""),
             "amount": round(amount, 2) if amount else None,
             "amount_formatted": f"${amount:,.0f}" if amount else "N/A",
             "description": (award.get("Description") or "")[:200],
             "start_date": award.get("Start Date"),
             "end_date": award.get("End Date"),
             "naics": award.get("NAICS Code"),
+            "contract_type": award.get("Contract Award Type", ""),
+            "detail_url": detail_url,
         }
 
     # ------------------------------------------------------------------
@@ -367,7 +376,7 @@ class MarketResearchService:
             ],
             "limit": 50,
             "page": 1,
-            "sort": "Award Amount",
+            "sort": "Start Date",
             "order": "desc",
         }
 
