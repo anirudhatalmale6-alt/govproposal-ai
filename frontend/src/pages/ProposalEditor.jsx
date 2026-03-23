@@ -550,6 +550,25 @@ export default function ProposalEditor() {
   const [copiedToken, setCopiedToken] = useState(null);
   const [proposalId, setProposalId] = useState(null);
   const [opportunityDetails, setOpportunityDetails] = useState({});
+  const [skippedSections, setSkippedSections] = useState(new Set());
+
+  const toggleSectionInclude = (key) => {
+    setSkippedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleAllSections = () => {
+    const sKeys = Object.keys(sections);
+    if (skippedSections.size === 0) {
+      setSkippedSections(new Set(sKeys));
+    } else {
+      setSkippedSections(new Set());
+    }
+  };
   const quillRefs = useRef({});
 
   // Load company logo from vendor profile
@@ -654,6 +673,7 @@ export default function ProposalEditor() {
     try {
       const exportSections = {};
       for (const [key, content] of Object.entries(sections)) {
+        if (skippedSections.has(key)) continue;
         exportSections[key] = {
           title: sectionTitles[key] || sectionLabels[key] || key,
           content: content,
@@ -873,38 +893,59 @@ export default function ProposalEditor() {
           }`}
         >
           <div className="p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Sections
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Sections
+              </p>
+              <button
+                onClick={toggleAllSections}
+                className="text-xs font-medium text-blue hover:text-blue-dark transition-colors cursor-pointer"
+              >
+                {skippedSections.size === 0 ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
             <nav className="space-y-1">
-              {sectionKeys.map((key) => (
-                <button
-                  key={key}
-                  onClick={() => scrollToSection(key)}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                    activeSection === key
-                      ? 'bg-navy text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {key === 'cost_price_proposal' ? (
-                      <CurrencyDollarIcon
-                        className={`w-4 h-4 flex-shrink-0 ${
-                          activeSection === key ? 'text-accent' : 'text-green-400'
-                        }`}
-                      />
-                    ) : (
-                      <CheckCircleIcon
-                        className={`w-4 h-4 flex-shrink-0 ${
-                          activeSection === key ? 'text-accent' : 'text-gray-300'
-                        }`}
-                      />
-                    )}
-                    {sectionLabels[key] || key}
+              {sectionKeys.map((key) => {
+                const isSkipped = skippedSections.has(key);
+                return (
+                  <div key={key} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={!isSkipped}
+                      onChange={() => toggleSectionInclude(key)}
+                      className="w-3.5 h-3.5 rounded cursor-pointer accent-navy flex-shrink-0"
+                      title={isSkipped ? 'Click to include section' : 'Click to skip section'}
+                    />
+                    <button
+                      onClick={() => scrollToSection(key)}
+                      className={`flex-1 text-left px-2 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                        isSkipped
+                          ? 'text-gray-300 line-through'
+                          : activeSection === key
+                            ? 'bg-navy text-white shadow-sm'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {key === 'cost_price_proposal' ? (
+                          <CurrencyDollarIcon
+                            className={`w-4 h-4 flex-shrink-0 ${
+                              isSkipped ? 'text-gray-300' : activeSection === key ? 'text-accent' : 'text-green-400'
+                            }`}
+                          />
+                        ) : (
+                          <CheckCircleIcon
+                            className={`w-4 h-4 flex-shrink-0 ${
+                              isSkipped ? 'text-gray-300' : activeSection === key ? 'text-accent' : 'text-gray-300'
+                            }`}
+                          />
+                        )}
+                        {sectionLabels[key] || key}
+                      </div>
+                    </button>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </nav>
           </div>
         </aside>
@@ -1104,7 +1145,7 @@ export default function ProposalEditor() {
                       Table of Contents
                     </h2>
                     <ol className="space-y-1.5">
-                      {sectionKeys.map((key, idx) => (
+                      {sectionKeys.filter((key) => !skippedSections.has(key)).map((key, idx) => (
                         <li key={key} className="flex items-center text-sm text-gray-600">
                           <span className="font-semibold text-gray-800 w-8">{idx + 1}.</span>
                           <span>{sectionTitles[key] || sectionLabels[key] || key}</span>
@@ -1116,7 +1157,7 @@ export default function ProposalEditor() {
                   </div>
 
                   {/* Sections */}
-                  {sectionKeys.map((key, idx) => (
+                  {sectionKeys.filter((key) => !skippedSections.has(key)).map((key, idx) => (
                     <div
                       key={key}
                       ref={(el) => (sectionRefs.current[key] = el)}
@@ -1169,7 +1210,7 @@ export default function ProposalEditor() {
           ) : (
           /* ─── EDIT MODE ───────────────────────────────────────── */
           <div className="max-w-4xl mx-auto space-y-8">
-            {sectionKeys.map((key) => (
+            {sectionKeys.filter((key) => !skippedSections.has(key)).map((key) => (
               <div
                 key={key}
                 ref={(el) => (sectionRefs.current[key] = el)}
