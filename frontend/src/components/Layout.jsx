@@ -20,12 +20,12 @@ import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: HomeIcon },
+  { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
   { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
   { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
   { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
   { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
-  { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
   { label: 'Billing', path: '/billing', icon: CreditCardIcon },
   { label: 'Audit Log', path: '/audit-log', icon: ClockIcon },
 ];

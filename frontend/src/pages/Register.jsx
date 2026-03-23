@@ -73,7 +73,7 @@ export default function Register() {
       if (res.data.requires_verification === false && res.data.token) {
         // Auto-verified (no SMTP) — log in directly
         loginWithToken(res.data.token, res.data.user);
-        navigate('/dashboard');
+        navigate('/vendor-profile');
         return;
       }
       setRegisteredEmail(email);

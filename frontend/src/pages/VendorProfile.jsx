@@ -26,6 +26,18 @@ const socioeconomicOptions = [
   'Large Business',
 ];
 
+const classificationOptions = [
+  'Small Disadvantaged Business (SDB)',
+  'Women-Owned Small Business (WOSB)',
+  'Economically Disadvantaged WOSB (EDWOSB)',
+  'Veteran-Owned Small Business (VOSB)',
+  'Service-Disabled Veteran-Owned (SDVOSB)',
+  'HUBZone Certified',
+  '8(a) Business Development',
+  'Minority-Owned Business',
+  'Disadvantaged Business Enterprise (DBE)',
+];
+
 const orgTypeOptions = [
   'LLC',
   'Corporation',
@@ -78,7 +90,9 @@ const initialProfile = {
   cage_code: '',
   duns_number: '',
   ein_tin: '',
+  business_registration_date: '',
   naics_codes: [],
+  business_classifications: [],
   capabilities: '',
   past_performance: '',
   socioeconomic_status: 'Small Business',
@@ -275,6 +289,15 @@ export default function VendorProfile() {
               />
             </div>
             <div>
+              <label className={labelClass}>Business Registration / Incorporation Date</label>
+              <input
+                type="date"
+                value={profile.business_registration_date}
+                onChange={(e) => handleChange('business_registration_date', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
               <label className={labelClass}>Organizational Type</label>
               <select
                 value={profile.organizational_type}
@@ -345,7 +368,7 @@ export default function VendorProfile() {
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>
-                NAICS Codes{' '}
+                NAICS / SIC Code{' '}
                 <span className="text-gray-400 font-normal">
                   (select from official 2022 NAICS list)
                 </span>
@@ -354,6 +377,39 @@ export default function VendorProfile() {
                 selectedCodes={profile.naics_codes || []}
                 onChange={(codes) => handleChange('naics_codes', codes)}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Business Classification */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-navy mb-5 flex items-center gap-2">
+            <ShieldCheckIcon className="w-5 h-5" />
+            Business Classification
+          </h2>
+          <div>
+            <label className={labelClass}>
+              Select all classifications that apply to your business
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {classificationOptions.map((cls) => {
+                const isSelected = (profile.business_classifications || []).includes(cls);
+                return (
+                  <button
+                    key={cls}
+                    type="button"
+                    onClick={() => toggleArrayItem('business_classifications', cls)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-navy text-white border-navy'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                    }`}
+                  >
+                    {isSelected && '✓ '}
+                    {cls}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

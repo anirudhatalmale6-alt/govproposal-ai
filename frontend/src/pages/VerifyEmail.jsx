@@ -96,10 +96,10 @@ export default function VerifyEmail() {
                 Your email has been verified successfully. You can now access all features.
               </p>
               <Link
-                to="/dashboard"
+                to="/vendor-profile"
                 className="inline-block bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-lg font-semibold text-sm transition-all shadow-sm no-underline"
               >
-                Go to Dashboard
+                Complete Your Vendor Profile
               </Link>
             </>
           )}
