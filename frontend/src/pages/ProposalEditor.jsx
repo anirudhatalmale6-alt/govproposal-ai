@@ -185,6 +185,33 @@ function PricingTable({ onContentUpdate }) {
   const [odcs, setOdcs] = useState([{ id: Date.now(), description: '', amount: 0 }]);
   const [notes, setNotes] = useState('');
   const [importCount, setImportCount] = useState(0);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === lineItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(lineItems.map((item) => item.id)));
+    }
+  };
+
+  const removeSelected = () => {
+    if (selectedIds.size === 0) return;
+    setLineItems((prev) => {
+      const remaining = prev.filter((item) => !selectedIds.has(item.id));
+      return remaining.length > 0 ? remaining : [defaultLineItem()];
+    });
+    setSelectedIds(new Set());
+  };
 
   const unitOptions = ['Hours', 'Months', 'Each', 'Lot', 'Days', 'FTE Years'];
 
@@ -286,6 +313,15 @@ function PricingTable({ onContentUpdate }) {
             )}
           </h3>
           <div className="flex items-center gap-3">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={removeSelected}
+                className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 transition-colors cursor-pointer"
+              >
+                <TrashIcon className="w-3.5 h-3.5" />
+                Remove Selected ({selectedIds.size})
+              </button>
+            )}
             <button
               onClick={handleImportFromResearch}
               className="flex items-center gap-1 text-xs font-medium text-blue hover:text-blue-dark transition-colors cursor-pointer"
@@ -293,20 +329,28 @@ function PricingTable({ onContentUpdate }) {
               <ArrowPathIcon className="w-3.5 h-3.5" />
               Import from Market Research
             </button>
-          <button
-            onClick={addLineItem}
-            className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Add Line Item
-          </button>
+            <button
+              onClick={addLineItem}
+              className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add Line Item
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-navy text-white">
-                <th className="px-3 py-2.5 text-left font-medium rounded-tl-lg">CLIN</th>
+                <th className="px-2 py-2.5 rounded-tl-lg w-8 text-center">
+                  <input
+                    type="checkbox"
+                    checked={lineItems.length > 0 && selectedIds.size === lineItems.length}
+                    onChange={toggleSelectAll}
+                    className="w-3.5 h-3.5 rounded cursor-pointer accent-white"
+                  />
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium">CLIN</th>
                 <th className="px-3 py-2.5 text-left font-medium">Description</th>
                 <th className="px-3 py-2.5 text-left font-medium">Labor Category</th>
                 <th className="px-3 py-2.5 text-right font-medium">Qty</th>
@@ -318,7 +362,15 @@ function PricingTable({ onContentUpdate }) {
             </thead>
             <tbody>
               {lineItems.map((item, idx) => (
-                <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${selectedIds.has(item.id) ? 'bg-blue-50/60' : ''}`}>
+                  <td className="px-2 py-1.5 border-b border-gray-100 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="w-3.5 h-3.5 rounded cursor-pointer accent-navy"
+                    />
+                  </td>
                   <td className="px-2 py-1.5 border-b border-gray-100">
                     <input
                       type="text"
@@ -394,7 +446,7 @@ function PricingTable({ onContentUpdate }) {
             </tbody>
             <tfoot>
               <tr className="bg-navy/5 font-semibold">
-                <td colSpan="6" className="px-3 py-2.5 text-right text-sm text-navy">
+                <td colSpan="7" className="px-3 py-2.5 text-right text-sm text-navy">
                   Labor Subtotal
                 </td>
                 <td className="px-3 py-2.5 text-right text-sm text-navy">{fmt(laborTotal)}</td>
