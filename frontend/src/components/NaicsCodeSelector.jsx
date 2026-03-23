@@ -26,7 +26,7 @@ export default function NaicsCodeSelector({ selectedCodes = [], onChange, maxSel
 
   // Load NAICS data
   useEffect(() => {
-    fetch('/naics_codes.json')
+    fetch(`${import.meta.env.BASE_URL}naics_codes.json`)
       .then((r) => r.json())
       .then((data) => {
         setNaicsData(data);
