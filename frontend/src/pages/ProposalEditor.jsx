@@ -484,6 +484,7 @@ export default function ProposalEditor() {
   const [sectionTitles, setSectionTitles] = useState({});
   const [proposalTitle, setProposalTitle] = useState('Government Proposal');
   const [vendorName, setVendorName] = useState('');
+  const [companyLogo, setCompanyLogo] = useState('');
   const [activeSection, setActiveSection] = useState('');
   const [exporting, setExporting] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -498,6 +499,17 @@ export default function ProposalEditor() {
   const [proposalId, setProposalId] = useState(null);
   const [opportunityDetails, setOpportunityDetails] = useState({});
   const quillRefs = useRef({});
+
+  // Load company logo from vendor profile
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vendorProfile');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.company_logo) setCompanyLogo(parsed.company_logo);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     if (location.state?.proposal) {
@@ -960,6 +972,17 @@ export default function ProposalEditor() {
                       }[previewTheme] || '#1e3a5f',
                     }}
                   >
+                    {companyLogo && (
+                      <div className="mb-5">
+                        <div className="inline-block bg-white rounded-lg p-2">
+                          <img
+                            src={companyLogo}
+                            alt="Company Logo"
+                            className="max-h-16 max-w-48 object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
                     <p className="text-sm uppercase tracking-widest opacity-80 mb-2">Government Proposal</p>
                     <h1 className="text-3xl font-bold mb-3">{proposalTitle || 'Untitled Proposal'}</h1>
                     {vendorName && (

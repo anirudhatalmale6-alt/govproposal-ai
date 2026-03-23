@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   UserCircleIcon,
   BuildingOffice2Icon,
@@ -12,6 +12,7 @@ import {
   BriefcaseIcon,
   PlusIcon,
   TrashIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import NaicsCodeSelector from '../components/NaicsCodeSelector';
@@ -86,6 +87,7 @@ const contractVehicleOptions = [
 ];
 
 const initialProfile = {
+  company_logo: '',
   company_name: '',
   cage_code: '',
   duns_number: '',
@@ -127,6 +129,37 @@ export default function VendorProfile() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const logoInputRef = useRef(null);
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a valid image file (JPG, PNG, GIF, WebP, or SVG).');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Logo file must be under 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      handleChange('company_logo', event.target.result);
+      setError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    handleChange('company_logo', '');
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
 
   // Load saved profile from localStorage on mount
   useEffect(() => {
@@ -280,6 +313,60 @@ export default function VendorProfile() {
             <BuildingOffice2Icon className="w-5 h-5" />
             Company Information
           </h2>
+          {/* Company Logo Upload */}
+          <div className="mb-6 pb-6 border-b border-gray-100">
+            <label className={labelClass}>
+              <span className="flex items-center gap-2">
+                <PhotoIcon className="w-4 h-4" />
+                Company Logo
+              </span>
+              <span className="text-xs text-gray-400 font-normal mt-0.5 block">
+                JPG, PNG, GIF, WebP, or SVG — max 5MB. This logo will appear on your proposal cover pages.
+              </span>
+            </label>
+            <div className="flex items-center gap-5 mt-3">
+              {profile.company_logo ? (
+                <div className="relative group">
+                  <img
+                    src={profile.company_logo}
+                    alt="Company logo"
+                    className="w-24 h-24 object-contain rounded-lg border border-gray-200 bg-white p-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    title="Remove logo"
+                  >
+                    <TrashIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                  <PhotoIcon className="w-8 h-8 text-gray-300" />
+                </div>
+              )}
+              <div>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  id="logo-upload"
+                />
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-navy bg-navy/5 hover:bg-navy/10 rounded-lg transition-colors cursor-pointer"
+                >
+                  <PhotoIcon className="w-4 h-4" />
+                  {profile.company_logo ? 'Change Logo' : 'Upload Logo'}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
               <label className={labelClass}>

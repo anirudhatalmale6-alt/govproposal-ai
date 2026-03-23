@@ -90,6 +90,7 @@ export default function SharedProposal() {
   const sectionKeys = Object.keys(sections).filter((k) => sectionLabels[k]);
   const proposalTitle = proposal.opportunity_title || proposal.title || 'Untitled Proposal';
   const vendorName = proposal.vendor_name || '';
+  const companyLogo = proposal.company_logo || '';
   const opp = proposal.opportunity || data.opportunity || {};
 
   return (
@@ -137,6 +138,17 @@ export default function SharedProposal() {
           <div className="relative z-20">
             {/* Cover / Header */}
             <div className="px-12 py-10 text-white" style={{ backgroundColor: '#1e3a5f' }}>
+              {companyLogo && (
+                <div className="mb-5">
+                  <div className="inline-block bg-white rounded-lg p-2">
+                    <img
+                      src={companyLogo}
+                      alt="Company Logo"
+                      className="max-h-16 max-w-48 object-contain"
+                    />
+                  </div>
+                </div>
+              )}
               <p className="text-sm uppercase tracking-widest opacity-80 mb-2">Government Proposal</p>
               <h1 className="text-3xl font-bold mb-3">{proposalTitle}</h1>
               {vendorName && (
