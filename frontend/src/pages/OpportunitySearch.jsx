@@ -1,29 +1,32 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   MagnifyingGlassIcon,
   BuildingLibraryIcon,
   CalendarDaysIcon,
   TagIcon,
   ArrowRightIcon,
-  FunnelIcon,
   ExclamationTriangleIcon,
   GlobeAltIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
 export default function OpportunitySearch() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
-  const [naicsCode, setNaicsCode] = useState('');
   const [searchSource, setSearchSource] = useState('all');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState('');
+  const [showNaicsWarning, setShowNaicsWarning] = useState(false);
+
+  // NAICS codes from vendor profile
+  const [profileNaicsCodes, setProfileNaicsCodes] = useState([]);
 
   // Search Sources state
   const [sources, setSources] = useState([]);
@@ -32,10 +35,24 @@ export default function OpportunitySearch() {
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState('');
 
-  // Load search sources on mount
+  // Load search sources and NAICS codes from vendor profile on mount
   useEffect(() => {
     loadSources();
+    loadProfileNaics();
   }, []);
+
+  const loadProfileNaics = () => {
+    try {
+      const saved = localStorage.getItem('vendorProfile');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const codes = parsed.naics_codes || [];
+        setProfileNaicsCodes(Array.isArray(codes) ? codes : []);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const loadSources = async () => {
     try {
@@ -77,7 +94,12 @@ export default function OpportunitySearch() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!keyword.trim() && !naicsCode.trim()) return;
+    if (!keyword.trim()) return;
+
+    // Show warning if no NAICS codes in vendor profile
+    if (profileNaicsCodes.length === 0) {
+      setShowNaicsWarning(true);
+    }
 
     setLoading(true);
     setError('');
@@ -86,7 +108,10 @@ export default function OpportunitySearch() {
     try {
       const params = { source: searchSource };
       if (keyword.trim()) params.keyword = keyword.trim();
-      if (naicsCode.trim()) params.naics = naicsCode.trim();
+      // Auto-use first NAICS code from vendor profile
+      if (profileNaicsCodes.length > 0) {
+        params.naics = profileNaicsCodes[0];
+      }
 
       const response = await api.get('/api/opportunities', { params });
       setResults(response.data.opportunities || response.data || []);
@@ -261,10 +286,57 @@ export default function OpportunitySearch() {
         )}
       </div>
 
+      {/* NAICS Warning Popup */}
+      {showNaicsWarning && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <InformationCircleIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-amber-800 font-medium">
+              Make sure you have updated all required NAICS / SIC Codes under your Vendor Profile to search for relevant open opportunities.
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <Link
+                to="/vendor-profile"
+                className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent-dark no-underline transition-colors"
+              >
+                Update NAICS Codes in Vendor Profile
+                <ArrowRightIcon className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                onClick={() => setShowNaicsWarning(false)}
+                className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NAICS Codes from Vendor Profile */}
+      {profileNaicsCodes.length > 0 && (
+        <div className="bg-blue/5 border border-blue/20 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <InformationCircleIcon className="w-5 h-5 text-blue flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-gray-700">
+              <span className="font-medium">NAICS codes from your Vendor Profile:</span>{' '}
+              {profileNaicsCodes.join(', ')}
+            </p>
+            <Link
+              to="/vendor-profile"
+              className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark no-underline transition-colors mt-1"
+            >
+              Edit in Vendor Profile
+              <ArrowRightIcon className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Search Form */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
         <form onSubmit={handleSearch}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="mb-4">
             {/* Keyword Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -277,23 +349,6 @@ export default function OpportunitySearch() {
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="e.g., cybersecurity, IT modernization, cloud services"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
-                />
-              </div>
-            </div>
-
-            {/* NAICS Code Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                NAICS Code
-              </label>
-              <div className="relative">
-                <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={naicsCode}
-                  onChange={(e) => setNaicsCode(e.target.value)}
-                  placeholder="e.g., 541512, 541519"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
                 />
               </div>
@@ -328,7 +383,7 @@ export default function OpportunitySearch() {
 
           <button
             type="submit"
-            disabled={loading || (!keyword.trim() && !naicsCode.trim())}
+            disabled={loading || !keyword.trim()}
             className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow-md"
           >
             {loading ? (
