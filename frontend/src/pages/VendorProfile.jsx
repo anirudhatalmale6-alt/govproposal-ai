@@ -106,8 +106,16 @@ const initialProfile = {
   security_clearance_level: 'None',
   certifications: [],
   contract_vehicles: [],
-  registered_address: '',
+  registered_address_line1: '',
+  registered_address_line2: '',
+  registered_address_city: '',
+  registered_address_state: '',
+  registered_address_zip: '',
+  registered_address_country: '',
   branches: [],
+  government_portals: [],
+  sam_login_user: '',
+  sam_login_password: '',
   contact_name: '',
   contact_email: '',
   contact_phone: '',
@@ -169,6 +177,34 @@ export default function VendorProfile() {
     setProfile((prev) => ({
       ...prev,
       branches: (prev.branches || []).filter((_, i) => i !== index),
+    }));
+    setSuccess('');
+    setError('');
+  };
+
+  const addPortal = () => {
+    setProfile((prev) => ({
+      ...prev,
+      government_portals: [...(prev.government_portals || []), { portal: '', registration_id: '', status: 'Registered' }],
+    }));
+    setSuccess('');
+    setError('');
+  };
+
+  const updatePortal = (index, field, value) => {
+    setProfile((prev) => {
+      const portals = [...(prev.government_portals || [])];
+      portals[index] = { ...portals[index], [field]: value };
+      return { ...prev, government_portals: portals };
+    });
+    setSuccess('');
+    setError('');
+  };
+
+  const removePortal = (index) => {
+    setProfile((prev) => ({
+      ...prev,
+      government_portals: (prev.government_portals || []).filter((_, i) => i !== index),
     }));
     setSuccess('');
     setError('');
@@ -425,13 +461,62 @@ export default function VendorProfile() {
               <label className={labelClass}>
                 Registered / Headquarters Address
               </label>
-              <textarea
-                value={profile.registered_address}
-                onChange={(e) => handleChange('registered_address', e.target.value)}
-                placeholder="Full registered address including street, city, state, ZIP code..."
-                rows={2}
-                className={`${inputClass} resize-y`}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2">
+                  <input
+                    type="text"
+                    value={profile.registered_address_line1}
+                    onChange={(e) => handleChange('registered_address_line1', e.target.value)}
+                    placeholder="Address Line 1"
+                    className={inputClass}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <input
+                    type="text"
+                    value={profile.registered_address_line2}
+                    onChange={(e) => handleChange('registered_address_line2', e.target.value)}
+                    placeholder="Address Line 2 (optional)"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={profile.registered_address_city}
+                    onChange={(e) => handleChange('registered_address_city', e.target.value)}
+                    placeholder="City"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={profile.registered_address_state}
+                    onChange={(e) => handleChange('registered_address_state', e.target.value)}
+                    placeholder="State"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={profile.registered_address_zip}
+                    onChange={(e) => handleChange('registered_address_zip', e.target.value)}
+                    placeholder="Zip Code"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={profile.registered_address_country}
+                    onChange={(e) => handleChange('registered_address_country', e.target.value)}
+                    placeholder="Country"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -545,6 +630,123 @@ export default function VendorProfile() {
                 ))}
               </select>
             </div>
+            <div>
+              <label className={labelClass}>SAM.gov User ID</label>
+              <input
+                type="text"
+                value={profile.sam_login_user}
+                onChange={(e) => handleChange('sam_login_user', e.target.value)}
+                placeholder="Your SAM.gov login username"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>SAM.gov Password</label>
+              <input
+                type="password"
+                value={profile.sam_login_password}
+                onChange={(e) => handleChange('sam_login_password', e.target.value)}
+                placeholder="Your SAM.gov login password"
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Government Portal Registrations */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-navy mb-5 flex items-center gap-2">
+            <BuildingOffice2Icon className="w-5 h-5" />
+            Government Portal Registrations
+          </h2>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className={labelClass + ' mb-0'}>
+                Portals{' '}
+                <span className="text-gray-400 font-normal">
+                  (SAM.gov, SBA.gov, USASpending.gov, FPDS.gov, Grants.gov, Acquisition.gov, etc.)
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={addPortal}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-navy bg-navy/5 hover:bg-navy/10 rounded-lg transition-colors cursor-pointer"
+              >
+                <PlusIcon className="w-3.5 h-3.5" />
+                Add Portal
+              </button>
+            </div>
+            {(profile.government_portals || []).length === 0 ? (
+              <p className="text-sm text-gray-400 italic">
+                No government portals added. Click "Add Portal" to add your registrations.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {(profile.government_portals || []).map((portal, index) => (
+                  <div
+                    key={index}
+                    className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 relative"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => removePortal(index)}
+                      className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                      title="Remove portal"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-8">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Portal Name
+                        </label>
+                        <select
+                          value={portal.portal}
+                          onChange={(e) => updatePortal(index, 'portal', e.target.value)}
+                          className={selectClass}
+                        >
+                          <option value="">Select portal...</option>
+                          <option value="SAM.gov">SAM.gov</option>
+                          <option value="SBA.gov">SBA.gov</option>
+                          <option value="USASpending.gov">USASpending.gov</option>
+                          <option value="FPDS.gov">FPDS.gov</option>
+                          <option value="Grants.gov">Grants.gov</option>
+                          <option value="Acquisition.gov">Acquisition.gov</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Registration / Entity ID
+                        </label>
+                        <input
+                          type="text"
+                          value={portal.registration_id}
+                          onChange={(e) => updatePortal(index, 'registration_id', e.target.value)}
+                          placeholder="Your registration ID"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Status
+                        </label>
+                        <select
+                          value={portal.status}
+                          onChange={(e) => updatePortal(index, 'status', e.target.value)}
+                          className={selectClass}
+                        >
+                          <option value="Registered">Registered</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Expired">Expired</option>
+                          <option value="Not Registered">Not Registered</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
