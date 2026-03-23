@@ -140,6 +140,9 @@ export default function ProposalGenerator() {
         agency: opp.agency || '',
         description: opp.description || '',
         requirements: opp.requirements || '',
+        naics_code: opp.naics_code || '',
+        period_of_performance: opp.due_date || '',
+        contract_type: opp.type || prev.contract_type,
       }));
       setCurrentStep(2);
     }

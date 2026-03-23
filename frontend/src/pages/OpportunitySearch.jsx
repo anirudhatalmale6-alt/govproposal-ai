@@ -155,7 +155,10 @@ export default function OpportunitySearch() {
           requirements: opportunity.requirements || '',
           due_date: opportunity.due_date,
           type: opportunity.type,
-          naics_code: opportunity.naics_code,
+          naics_code: opportunity.naics_code || '',
+          notice_id: opportunity.notice_id || '',
+          posted_date: opportunity.posted_date || '',
+          source: opportunity.source || '',
         },
       },
     });
