@@ -29,7 +29,7 @@ from models import (
     AVAILABLE_SECTIONS,
 )
 from database import get_db, create_tables
-from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource, ProposalTemplate, FavoriteTemplate, ProposalShare, AuditLog
+from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource, ProposalTemplate, FavoriteTemplate, ProposalShare, AuditLog, OpportunityAlert
 from services.ai_service import AIService
 from services.sam_service import SAMService
 from services.export_service import generate_docx, generate_pdf
@@ -220,6 +220,7 @@ async def search_opportunities(
     - sam: SAM.gov Opportunities API (default)
     - usaspending: USASpending.gov Awards API (free, no key)
     - gsa: GSA.gov (uses SAM.gov API)
+    - sba: SBA.gov (uses SAM.gov API, filtered for small business)
     - all: Search all sources and combine results
     """
     source = (source or "all").lower()
@@ -228,7 +229,7 @@ async def search_opportunities(
 
     try:
         # SAM.gov search
-        if source in ("sam", "gsa", "all"):
+        if source in ("sam", "gsa", "sba", "all"):
             try:
                 sam_results = sam_service.search_opportunities(
                     keyword=keyword, naics=naics, limit=limit,
@@ -265,6 +266,62 @@ async def search_opportunities(
             status_code=500,
             detail=f"Failed to search opportunities: {exc}",
         )
+
+
+# ============================================================
+# Review Opportunity (AI analysis)
+# ============================================================
+
+@app.post("/api/opportunities/review")
+async def review_opportunity(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    AI-powered opportunity review: analyze the scope of work,
+    summarize key requirements, and prepare for proposal creation.
+    """
+    body = await request.json()
+    opportunity = body.get("opportunity", {})
+
+    title = opportunity.get("title", "Unknown")
+    agency = opportunity.get("agency", "Unknown Agency")
+    description = opportunity.get("description", "")
+    notice_id = opportunity.get("notice_id", "")
+    due_date = opportunity.get("due_date", "")
+    opp_type = opportunity.get("type", "")
+    naics = opportunity.get("naics_code", "")
+
+    prompt = (
+        f"Analyze this government contract opportunity and provide a detailed review:\n\n"
+        f"Title: {title}\n"
+        f"Agency: {agency}\n"
+        f"Notice ID: {notice_id}\n"
+        f"Type: {opp_type}\n"
+        f"NAICS Code: {naics}\n"
+        f"Due Date: {due_date}\n"
+        f"Description: {description}\n\n"
+        f"Please provide:\n"
+        f"1. SCOPE OF WORK SUMMARY - A clear, concise summary of what this contract requires\n"
+        f"2. KEY REQUIREMENTS - Bullet points of the main deliverables and requirements\n"
+        f"3. EVALUATION CRITERIA - Likely evaluation factors based on the opportunity type\n"
+        f"4. RECOMMENDED APPROACH - Strategic recommendations for proposal response\n"
+        f"5. RISK ASSESSMENT - Potential risks and challenges\n"
+        f"6. GO/NO-GO RECOMMENDATION - Whether to pursue this opportunity and why\n\n"
+        f"Format your response clearly with section headers."
+    )
+
+    try:
+        review = ai_service.generate_section(prompt)
+        return {
+            "opportunity_title": title,
+            "agency": agency,
+            "notice_id": notice_id,
+            "review": review,
+        }
+    except Exception as exc:
+        logger.error("Opportunity review failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to review opportunity: {exc}")
 
 
 # ============================================================
@@ -1549,6 +1606,79 @@ if FRONTEND_DIST.exists():
             return FileResponse(str(file_path))
         # Otherwise serve index.html for SPA routing
         return FileResponse(str(FRONTEND_DIST / "index.html"))
+
+
+# ============================================================
+# Opportunity Alerts (auto-search every N hours)
+# ============================================================
+
+@app.get("/api/opportunity-alerts")
+async def get_opportunity_alert(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the current user's opportunity alert settings."""
+    result = await db.execute(
+        select(OpportunityAlert).where(OpportunityAlert.user_id == current_user.id)
+    )
+    alert = result.scalar_one_or_none()
+    if not alert:
+        return {"alert": None}
+    return {"alert": alert.to_dict()}
+
+
+@app.post("/api/opportunity-alerts")
+async def create_or_update_alert(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or update auto-search alert settings."""
+    body = await request.json()
+    naics_codes = body.get("naics_codes", "")
+    keywords = body.get("keywords", "")
+    is_active = body.get("is_active", True)
+    frequency_hours = body.get("frequency_hours", 4)
+
+    result = await db.execute(
+        select(OpportunityAlert).where(OpportunityAlert.user_id == current_user.id)
+    )
+    alert = result.scalar_one_or_none()
+
+    if alert:
+        alert.naics_codes = naics_codes
+        alert.keywords = keywords
+        alert.is_active = is_active
+        alert.frequency_hours = frequency_hours
+    else:
+        alert = OpportunityAlert(
+            user_id=current_user.id,
+            naics_codes=naics_codes,
+            keywords=keywords,
+            is_active=is_active,
+            frequency_hours=frequency_hours,
+        )
+        db.add(alert)
+
+    await db.commit()
+    await db.refresh(alert)
+    return {"alert": alert.to_dict(), "message": "Alert settings saved successfully."}
+
+
+@app.delete("/api/opportunity-alerts")
+async def delete_alert(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete the user's opportunity alert."""
+    result = await db.execute(
+        select(OpportunityAlert).where(OpportunityAlert.user_id == current_user.id)
+    )
+    alert = result.scalar_one_or_none()
+    if alert:
+        await db.delete(alert)
+        await db.commit()
+    return {"message": "Alert deleted."}
 
 
 # ============================================================

@@ -17,11 +17,14 @@ class SAMService:
     """Service for interacting with the SAM.gov Opportunities API."""
 
     def __init__(self) -> None:
-        self.api_key: str = os.getenv("SAM_API_KEY", "")
+        raw_key = os.getenv("SAM_API_KEY", "").strip()
+        # Treat "demo_mode" or empty as no key
+        self.api_key: str = "" if raw_key.lower() in ("", "demo_mode", "demo") else raw_key
         if not self.api_key:
             logger.warning(
-                "SAM_API_KEY not set. SAM.gov searches will fail. "
-                "Set SAM_API_KEY in your .env file."
+                "SAM_API_KEY not set or set to demo_mode. "
+                "Real SAM.gov searches require a valid API key from api.data.gov. "
+                "Using demo opportunities for now."
             )
 
     def search_opportunities(

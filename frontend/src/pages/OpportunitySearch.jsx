@@ -13,6 +13,8 @@ import {
   TrashIcon,
   XMarkIcon,
   InformationCircleIcon,
+  DocumentMagnifyingGlassIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -37,10 +39,22 @@ export default function OpportunitySearch() {
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState('');
 
-  // Load search sources and NAICS codes from vendor profile on mount
+  // Review Opportunity state
+  const [reviewingOpp, setReviewingOpp] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewData, setReviewData] = useState(null);
+
+  // Auto-search alert state
+  const [alertSettings, setAlertSettings] = useState(null);
+  const [showAlertSetup, setShowAlertSetup] = useState(false);
+  const [alertForm, setAlertForm] = useState({ naics_codes: '', keywords: '', frequency_hours: 4, is_active: true });
+  const [alertSaving, setAlertSaving] = useState(false);
+
+  // Load search sources, NAICS codes, and alert settings on mount
   useEffect(() => {
     loadSources();
     loadProfileNaics();
+    loadAlertSettings();
   }, []);
 
   const loadProfileNaics = () => {
@@ -145,6 +159,62 @@ export default function OpportunitySearch() {
         },
       },
     });
+  };
+
+  const loadAlertSettings = async () => {
+    try {
+      const response = await api.get('/api/opportunity-alerts');
+      if (response.data.alert) {
+        setAlertSettings(response.data.alert);
+        setAlertForm({
+          naics_codes: response.data.alert.naics_codes || '',
+          keywords: response.data.alert.keywords || '',
+          frequency_hours: response.data.alert.frequency_hours || 4,
+          is_active: response.data.alert.is_active ?? true,
+        });
+      }
+    } catch {
+      // silently fail
+    }
+  };
+
+  const saveAlertSettings = async () => {
+    setAlertSaving(true);
+    try {
+      const response = await api.post('/api/opportunity-alerts', alertForm);
+      setAlertSettings(response.data.alert);
+      setShowAlertSetup(false);
+    } catch {
+      alert('Failed to save alert settings.');
+    } finally {
+      setAlertSaving(false);
+    }
+  };
+
+  const handleReviewOpportunity = async (opportunity) => {
+    setReviewingOpp(opportunity);
+    setReviewLoading(true);
+    setReviewData(null);
+    try {
+      const response = await api.post('/api/opportunities/review', {
+        opportunity: {
+          title: opportunity.title,
+          agency: opportunity.agency,
+          description: opportunity.description,
+          notice_id: opportunity.notice_id,
+          due_date: opportunity.due_date,
+          type: opportunity.type,
+          naics_code: opportunity.naics_code || '',
+        },
+      });
+      setReviewData(response.data);
+    } catch (err) {
+      setReviewData({
+        error: err.response?.data?.detail || 'Failed to review opportunity. Please try again.',
+      });
+    } finally {
+      setReviewLoading(false);
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -290,6 +360,95 @@ export default function OpportunitySearch() {
         )}
       </div>
 
+      {/* Auto-Search Alert Settings */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center">
+              <SparklesIcon className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-navy">Auto-Search Alerts</h2>
+              <p className="text-xs text-gray-400">
+                {alertSettings?.is_active
+                  ? `Active — searching every ${alertSettings.frequency_hours} hours`
+                  : 'Set up automatic opportunity search with email notifications'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowAlertSetup(!showAlertSetup)}
+            className="text-sm font-medium text-accent hover:text-accent-dark transition-all cursor-pointer"
+          >
+            {showAlertSetup ? 'Cancel' : alertSettings ? 'Edit Settings' : 'Set Up Alerts'}
+          </button>
+        </div>
+
+        {showAlertSetup && (
+          <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  NAICS Codes (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={alertForm.naics_codes}
+                  onChange={(e) => setAlertForm((prev) => ({ ...prev, naics_codes: e.target.value }))}
+                  placeholder="e.g., 541512, 541519, 541110"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Keywords (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={alertForm.keywords}
+                  onChange={(e) => setAlertForm((prev) => ({ ...prev, keywords: e.target.value }))}
+                  placeholder="e.g., cybersecurity, cloud, IT modernization"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Search Frequency</label>
+                <select
+                  value={alertForm.frequency_hours}
+                  onChange={(e) => setAlertForm((prev) => ({ ...prev, frequency_hours: parseInt(e.target.value) }))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue"
+                >
+                  <option value={1}>Every 1 hour</option>
+                  <option value={2}>Every 2 hours</option>
+                  <option value={4}>Every 4 hours</option>
+                  <option value={8}>Every 8 hours</option>
+                  <option value={12}>Every 12 hours</option>
+                  <option value={24}>Every 24 hours</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer mt-4">
+                <input
+                  type="checkbox"
+                  checked={alertForm.is_active}
+                  onChange={(e) => setAlertForm((prev) => ({ ...prev, is_active: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                />
+                <span className="text-sm text-gray-700">Enable email notifications</span>
+              </label>
+            </div>
+            <button
+              onClick={saveAlertSettings}
+              disabled={alertSaving}
+              className="bg-accent hover:bg-accent-dark text-white px-6 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {alertSaving ? 'Saving...' : 'Save Alert Settings'}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* NAICS Warning Popup */}
       {showNaicsWarning && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
@@ -387,6 +546,7 @@ export default function OpportunitySearch() {
                 { key: 'all', label: 'All Sources' },
                 { key: 'sam', label: 'SAM.gov' },
                 { key: 'usaspending', label: 'USASpending.gov' },
+                { key: 'sba', label: 'SBA.gov' },
                 { key: 'gsa', label: 'GSA.gov' },
               ].map((src) => (
                 <button
@@ -515,13 +675,22 @@ export default function OpportunitySearch() {
                     )}
                   </div>
 
-                  <button
-                    onClick={() => handleUseForProposal(opp)}
-                    className="w-full bg-navy hover:bg-navy-light text-white py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
-                  >
-                    Use for Proposal
-                    <ArrowRightIcon className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReviewOpportunity(opp)}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
+                    >
+                      <DocumentMagnifyingGlassIcon className="w-4 h-4" />
+                      Review Opportunity
+                    </button>
+                    <button
+                      onClick={() => handleUseForProposal(opp)}
+                      className="flex-1 bg-navy hover:bg-navy-light text-white py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
+                    >
+                      Use for Proposal
+                      <ArrowRightIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -540,6 +709,79 @@ export default function OpportunitySearch() {
             Enter keywords or a NAICS code above to find government contract
             opportunities. Select an opportunity to auto-fill your proposal details.
           </p>
+        </div>
+      )}
+
+      {/* Review Opportunity Modal */}
+      {reviewingOpp && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <SparklesIcon className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-navy">AI Opportunity Review</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">{reviewingOpp.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setReviewingOpp(null); setReviewData(null); }}
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {reviewLoading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <svg className="animate-spin w-10 h-10 text-amber-500 mb-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <p className="text-gray-500 font-medium">Analyzing opportunity...</p>
+                  <p className="text-gray-400 text-sm mt-1">AI is reviewing the scope of work and requirements</p>
+                </div>
+              ) : reviewData?.error ? (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-sm text-red-700">{reviewData.error}</p>
+                </div>
+              ) : reviewData ? (
+                <div className="prose prose-sm max-w-none">
+                  <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div><span className="font-medium text-gray-600">Agency:</span> <span className="text-gray-800">{reviewData.agency}</span></div>
+                      <div><span className="font-medium text-gray-600">Notice ID:</span> <span className="text-gray-800">{reviewData.notice_id || 'N/A'}</span></div>
+                    </div>
+                  </div>
+                  <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-sm">
+                    {reviewData.review}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+              <button
+                onClick={() => { setReviewingOpp(null); setReviewData(null); }}
+                className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => { handleUseForProposal(reviewingOpp); setReviewingOpp(null); setReviewData(null); }}
+                className="bg-navy hover:bg-navy-light text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
+              >
+                Proceed to Proposal
+                <ArrowRightIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

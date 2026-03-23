@@ -343,3 +343,38 @@ class AuditLog(Base):
             "ip_address": self.ip_address,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# ──────────────────────────────────────────────
+# OpportunityAlert (auto-search settings per user)
+# ──────────────────────────────────────────────
+
+class OpportunityAlert(Base):
+    __tablename__ = "opportunity_alerts"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    naics_codes = Column(Text, nullable=False, default="")  # comma-separated NAICS codes
+    keywords = Column(Text, nullable=False, default="")  # comma-separated keywords
+    is_active = Column(Boolean, default=True, nullable=False)
+    frequency_hours = Column(Integer, default=4, nullable=False)  # how often to search (hours)
+    last_searched_at = Column(DateTime(timezone=True), nullable=True)
+    last_notified_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "naics_codes": self.naics_codes,
+            "keywords": self.keywords,
+            "is_active": self.is_active,
+            "frequency_hours": self.frequency_hours,
+            "last_searched_at": self.last_searched_at.isoformat() if self.last_searched_at else None,
+            "last_notified_at": self.last_notified_at.isoformat() if self.last_notified_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
