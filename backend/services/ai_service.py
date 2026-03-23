@@ -306,7 +306,8 @@ class AIService:
     """Service for generating proposal content using Google Gemini API."""
 
     def __init__(self) -> None:
-        self.api_key: str = os.getenv("GEMINI_API_KEY", "")
+        raw_key = os.getenv("GEMINI_API_KEY", "").strip()
+        self.api_key: str = "" if raw_key.lower() in ("", "demo_mode", "demo") else raw_key
         self.demo_mode = not bool(self.api_key)
         if self.demo_mode:
             logger.warning(
@@ -330,6 +331,9 @@ class AIService:
         Returns:
             Generated text content for the section.
         """
+        if self.demo_mode:
+            return self._generate_demo_text(prompt)
+
         try:
             response = self.model.generate_content(prompt)
             if response and response.text:
@@ -339,6 +343,56 @@ class AIService:
         except Exception as exc:
             logger.error("Gemini API error: %s", exc)
             raise RuntimeError(f"AI generation failed: {exc}")
+
+    @staticmethod
+    def _generate_demo_text(prompt: str) -> str:
+        """Generate template-based content when no Gemini API key is configured."""
+        prompt_lower = prompt.lower()
+        if "about us" in prompt_lower or "about company" in prompt_lower:
+            return (
+                "We are a dedicated government contracting firm committed to delivering innovative solutions "
+                "that address the evolving needs of federal agencies. With a proven track record of successful "
+                "contract performance, our team combines deep domain expertise with cutting-edge technology to "
+                "drive mission success.\n\n"
+                "Our organization maintains a strong commitment to quality, compliance, and continuous improvement. "
+                "We hold key industry certifications and maintain active registrations across all major federal "
+                "procurement platforms. Our team of experienced professionals brings decades of combined expertise "
+                "in supporting federal missions across defense, civilian, and intelligence community sectors.\n\n"
+                "We pride ourselves on building lasting partnerships with our government clients, consistently "
+                "delivering on time and within budget while exceeding performance expectations."
+            )
+        elif "capability statement" in prompt_lower:
+            return (
+                "CORE COMPETENCIES: Our firm specializes in delivering comprehensive solutions across IT modernization, "
+                "cybersecurity, cloud migration, data analytics, and program management. We leverage industry best "
+                "practices and agile methodologies to ensure rapid, cost-effective delivery.\n\n"
+                "DIFFERENTIATORS: What sets us apart is our deep understanding of federal acquisition processes, "
+                "combined with our ability to rapidly deploy highly qualified personnel. Our past performance record "
+                "demonstrates consistent excellence across multiple federal agencies and contract vehicles.\n\n"
+                "VALUE PROPOSITION: We offer competitive pricing, flexible staffing models, and a commitment to "
+                "small business utilization goals. Our quality management system ensures compliance with all "
+                "applicable FAR/DFAR requirements while maintaining the highest standards of service delivery."
+            )
+        else:
+            # Generic review / analysis response
+            return (
+                "SCOPE OF WORK SUMMARY\n"
+                "This opportunity requires the contractor to provide comprehensive professional services "
+                "in support of the agency's mission objectives. The scope encompasses planning, execution, "
+                "and management of key deliverables aligned with federal requirements.\n\n"
+                "KEY REQUIREMENTS\n"
+                "- Qualified personnel with relevant experience and certifications\n"
+                "- Compliance with all applicable federal regulations (FAR/DFAR)\n"
+                "- Regular status reporting and performance metrics\n"
+                "- Quality assurance and continuous improvement processes\n\n"
+                "RECOMMENDED APPROACH\n"
+                "A phased approach is recommended, beginning with requirements analysis, followed by "
+                "solution design, implementation, and ongoing support. Leveraging agile methodologies "
+                "will ensure responsive delivery aligned with agency priorities.\n\n"
+                "GO/NO-GO RECOMMENDATION: PURSUE\n"
+                "This opportunity aligns well with our core competencies and past performance profile. "
+                "Recommend proceeding with proposal development."
+            )
 
     def _generate_demo_section(self, section_key: str, vendor: Dict, opportunity: Dict) -> str:
         """Generate realistic demo content for a section without calling the AI API."""

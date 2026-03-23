@@ -679,6 +679,29 @@ async def generate_proposal(
 
 
 # ============================================================
+# AI Section Generation (authenticated)
+# ============================================================
+
+@app.post("/api/proposals/generate-section")
+async def generate_section(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Generate AI content for a proposal section or vendor profile field."""
+    body = await request.json()
+    prompt = body.get("prompt", "")
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required.")
+
+    try:
+        content = ai_service.generate_section(prompt)
+        return {"content": content}
+    except Exception as exc:
+        logger.error("Section generation failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"AI generation failed: {exc}")
+
+
+# ============================================================
 # Proposal CRUD (authenticated, scoped to user)
 # ============================================================
 
