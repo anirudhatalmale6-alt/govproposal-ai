@@ -148,6 +148,84 @@ export default function ProposalGenerator() {
     }
   }, [location.state]);
 
+  // Auto-fill from RFP Deconstructor data (stored in localStorage)
+  useEffect(() => {
+    try {
+      const rfpData = localStorage.getItem('rfp_deconstruct_data');
+      if (!rfpData) return;
+      const parsed = JSON.parse(rfpData);
+      localStorage.removeItem('rfp_deconstruct_data');
+
+      // Build requirements text from extracted requirements
+      const reqText = (parsed.requirements || [])
+        .map((r) => `[${r.priority || 'N/A'}] ${r.requirement}`)
+        .join('\n');
+
+      // Build evaluation criteria text
+      const evalText = (parsed.evaluation_criteria || [])
+        .map((e) => `${e.factor}${e.weight ? ` (${e.weight})` : ''}: ${e.description}`)
+        .join('\n');
+
+      // Build description from summary + compliance items
+      let desc = parsed.summary || '';
+      if (parsed.compliance_items?.length > 0) {
+        desc += '\n\nCompliance Requirements:\n' +
+          parsed.compliance_items.map((c) => `- ${c.clause}: ${c.title} — ${c.action_required}`).join('\n');
+      }
+      if (parsed.key_dates?.length > 0) {
+        desc += '\n\nKey Dates:\n' +
+          parsed.key_dates.map((d) => `- ${d.event}: ${d.date}`).join('\n');
+      }
+
+      // Match contract type to our dropdown options
+      const ctMap = {
+        'FFP': 'Firm-Fixed-Price (FFP)',
+        'T&M': 'Time-and-Materials (T&M)',
+        'LH': 'Labor-Hour (LH)',
+        'CPFF': 'Cost-Plus-Fixed-Fee (CPFF)',
+        'CPIF': 'Cost-Plus-Incentive-Fee (CPIF)',
+        'IDIQ': 'IDIQ',
+      };
+      const matchedCt = parsed.contract_type
+        ? Object.entries(ctMap).find(([k]) => (parsed.contract_type || '').toUpperCase().includes(k))?.[1]
+        : null;
+
+      // Match set-aside type
+      const saMap = {
+        'small business': 'Total Small Business Set-Aside',
+        '8(a)': '8(a) Competitive',
+        'hubzone': 'HUBZone Set-Aside',
+        'sdvosb': 'SDVOSB Set-Aside',
+        'wosb': 'WOSB Set-Aside',
+        'edwosb': 'EDWOSB Set-Aside',
+      };
+      const matchedSa = parsed.set_aside
+        ? Object.entries(saMap).find(([k]) => (parsed.set_aside || '').toLowerCase().includes(k))?.[1]
+        : null;
+
+      setOpportunity((prev) => ({
+        ...prev,
+        title: parsed.title || prev.title,
+        solicitation_number: parsed.solicitation_number || prev.solicitation_number,
+        agency: parsed.agency || prev.agency,
+        naics_code: parsed.naics_code || prev.naics_code,
+        set_aside_type: matchedSa || prev.set_aside_type,
+        contract_type: matchedCt || prev.contract_type,
+        estimated_value: parsed.estimated_value || prev.estimated_value,
+        period_of_performance: parsed.period_of_performance || prev.period_of_performance,
+        place_of_performance: parsed.place_of_performance || prev.place_of_performance,
+        description: desc || prev.description,
+        requirements: reqText || prev.requirements,
+        evaluation_criteria: evalText || prev.evaluation_criteria,
+      }));
+
+      // Skip to step 2 since we have the data
+      setCurrentStep(2);
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
+
   const handleVendorChange = (field, value) => {
     setVendor((prev) => ({ ...prev, [field]: value }));
   };

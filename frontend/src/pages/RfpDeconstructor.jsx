@@ -181,6 +181,26 @@ export default function RfpDeconstructor() {
       {/* Results Section */}
       {result && (
         <div className="space-y-6">
+          {/* Automated Flow Banner */}
+          <div className="bg-gradient-to-r from-accent/10 to-blue-50 border border-accent/20 rounded-xl p-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-accent rounded-lg p-2">
+                <ArrowRightIcon className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-navy">Ready to generate a proposal from this RFP?</p>
+                <p className="text-xs text-gray-500">All extracted data will auto-fill the proposal generator — title, agency, requirements, evaluation criteria, and compliance items.</p>
+              </div>
+            </div>
+            <button
+              onClick={handleUseForProposal}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold bg-accent hover:bg-accent-dark text-white transition-all cursor-pointer shadow-md flex-shrink-0"
+            >
+              Generate Proposal
+              <ArrowRightIcon className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Summary Card */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-start justify-between mb-4">
