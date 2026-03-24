@@ -20,6 +20,12 @@ body {
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input, select, textarea {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* React Quill Overrides */
