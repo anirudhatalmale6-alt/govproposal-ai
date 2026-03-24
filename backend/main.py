@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Depends, Request
+from fastapi import FastAPI, HTTPException, Query, Depends, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +29,7 @@ from models import (
     AVAILABLE_SECTIONS,
 )
 from database import get_db, create_tables
-from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource, ProposalTemplate, FavoriteTemplate, ProposalShare, AuditLog, OpportunityAlert
+from db_models import User, VendorProfileDB, Proposal, Subscription, SearchSource, ProposalTemplate, FavoriteTemplate, ProposalShare, AuditLog, OpportunityAlert, Contract
 from services.ai_service import AIService
 from services.sam_service import SAMService
 from services.export_service import generate_docx, generate_pdf
@@ -699,6 +699,230 @@ async def generate_section(
     except Exception as exc:
         logger.error("Section generation failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"AI generation failed: {exc}")
+
+
+# ============================================================
+# RFP Deconstructor (authenticated)
+# ============================================================
+
+@app.post("/api/rfp/deconstruct")
+async def deconstruct_rfp(
+    file: UploadFile,
+    current_user: User = Depends(get_current_user),
+):
+    """Upload a solicitation PDF and AI-extract structured requirements."""
+    import PyPDF2
+    import io
+
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    contents = await file.read()
+    if len(contents) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 20MB.")
+
+    # Extract text from PDF
+    try:
+        reader = PyPDF2.PdfReader(io.BytesIO(contents))
+        text_parts = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                text_parts.append(text)
+        pdf_text = "\n".join(text_parts)
+    except Exception as exc:
+        logger.error("PDF extraction failed: %s", exc)
+        raise HTTPException(status_code=400, detail=f"Could not read PDF: {exc}")
+
+    if not pdf_text.strip():
+        raise HTTPException(status_code=400, detail="No text found in PDF. The document may be scanned/image-based.")
+
+    # Truncate to ~30k chars to stay within AI context limits
+    pdf_text = pdf_text[:30000]
+
+    prompt = f"""You are an expert government contracting analyst. Analyze this solicitation/RFP document and extract a structured breakdown.
+
+Return a JSON object (no markdown fences, raw JSON only) with these fields:
+{{
+  "title": "Solicitation title",
+  "solicitation_number": "Number if found, or null",
+  "agency": "Issuing agency name",
+  "naics_code": "NAICS code if found, or null",
+  "set_aside": "Set-aside type if any (e.g., Small Business, 8(a), SDVOSB), or null",
+  "deadline": "Submission deadline if found, or null",
+  "contract_type": "Contract type (FFP, T&M, CPFF, etc.) if found, or null",
+  "estimated_value": "Estimated contract value if found, or null",
+  "period_of_performance": "Performance period if found, or null",
+  "place_of_performance": "Location if found, or null",
+  "summary": "2-3 sentence summary of the requirement",
+  "requirements": [
+    {{
+      "id": "REQ-001",
+      "category": "Technical|Management|Staffing|Compliance|Reporting|Deliverable|Other",
+      "requirement": "Clear requirement text",
+      "priority": "Must Have|Should Have|Nice to Have",
+      "far_clauses": ["FAR clause numbers if referenced"],
+      "section_reference": "Section of the RFP where this was found"
+    }}
+  ],
+  "evaluation_criteria": [
+    {{
+      "factor": "Evaluation factor name",
+      "weight": "Weight or priority if stated",
+      "description": "What the evaluator is looking for"
+    }}
+  ],
+  "key_dates": [
+    {{
+      "event": "Event name",
+      "date": "Date string"
+    }}
+  ],
+  "compliance_items": [
+    {{
+      "clause": "FAR/DFARS clause number",
+      "title": "Clause title",
+      "action_required": "What the offeror must do"
+    }}
+  ]
+}}
+
+SOLICITATION TEXT:
+{pdf_text}"""
+
+    try:
+        result = ai_service.generate_section(prompt)
+        # Try to parse as JSON
+        import json as json_mod
+        # Clean up possible markdown fences
+        cleaned = result.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+        parsed = json_mod.loads(cleaned)
+        return {"status": "success", "data": parsed, "page_count": len(reader.pages)}
+    except json_mod.JSONDecodeError:
+        # Return raw text if JSON parsing fails
+        return {"status": "partial", "raw_analysis": result, "page_count": len(reader.pages)}
+    except Exception as exc:
+        logger.error("RFP deconstruction failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"AI analysis failed: {exc}")
+
+
+# ============================================================
+# Contract Management CRUD (authenticated)
+# ============================================================
+
+@app.get("/api/contracts")
+async def list_contracts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all contracts for the current user."""
+    from db_models import Contract
+    result = await db.execute(
+        select(Contract)
+        .where(Contract.user_id == current_user.id)
+        .order_by(Contract.created_at.desc())
+    )
+    contracts = result.scalars().all()
+    return {
+        "contracts": [
+            {
+                "id": c.id,
+                "title": c.title,
+                "contract_number": c.contract_number,
+                "agency": c.agency,
+                "status": c.status,
+                "value": c.value,
+                "start_date": c.start_date,
+                "end_date": c.end_date,
+                "deliverables": json.loads(c.deliverables) if c.deliverables else [],
+                "notes": c.notes,
+                "created_at": str(c.created_at),
+                "updated_at": str(c.updated_at),
+            }
+            for c in contracts
+        ]
+    }
+
+
+@app.post("/api/contracts")
+async def create_contract(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new contract."""
+    from db_models import Contract
+    body = await request.json()
+    contract = Contract(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        title=body.get("title", ""),
+        contract_number=body.get("contract_number", ""),
+        agency=body.get("agency", ""),
+        status=body.get("status", "active"),
+        value=body.get("value", 0),
+        start_date=body.get("start_date"),
+        end_date=body.get("end_date"),
+        deliverables=json.dumps(body.get("deliverables", [])),
+        notes=body.get("notes", ""),
+    )
+    db.add(contract)
+    await db.commit()
+    await db.refresh(contract)
+    return {"message": "Contract created", "id": contract.id}
+
+
+@app.put("/api/contracts/{contract_id}")
+async def update_contract(
+    contract_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an existing contract."""
+    from db_models import Contract
+    result = await db.execute(
+        select(Contract).where(Contract.id == contract_id, Contract.user_id == current_user.id)
+    )
+    contract = result.scalar_one_or_none()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found.")
+
+    body = await request.json()
+    for field in ["title", "contract_number", "agency", "status", "value", "start_date", "end_date", "notes"]:
+        if field in body:
+            setattr(contract, field, body[field])
+    if "deliverables" in body:
+        contract.deliverables = json.dumps(body["deliverables"])
+
+    await db.commit()
+    return {"message": "Contract updated"}
+
+
+@app.delete("/api/contracts/{contract_id}")
+async def delete_contract(
+    contract_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a contract."""
+    from db_models import Contract
+    result = await db.execute(
+        select(Contract).where(Contract.id == contract_id, Contract.user_id == current_user.id)
+    )
+    contract = result.scalar_one_or_none()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found.")
+
+    await db.delete(contract)
+    await db.commit()
+    return {"message": "Contract deleted"}
 
 
 # ============================================================

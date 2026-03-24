@@ -15,6 +15,8 @@ import {
   CreditCardIcon,
   ChartBarIcon,
   ClockIcon,
+  DocumentMagnifyingGlassIcon,
+  BriefcaseIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,8 +25,10 @@ const navItems = [
   { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
   { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
+  { label: 'RFP Deconstructor', path: '/rfp-deconstructor', icon: DocumentMagnifyingGlassIcon },
   { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
   { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
+  { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },
   { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
   { label: 'Billing', path: '/billing', icon: CreditCardIcon },
   { label: 'Audit Log', path: '/audit-log', icon: ClockIcon },

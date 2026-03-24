@@ -10,67 +10,85 @@ import {
   UserGroupIcon,
   ArrowRightIcon,
   CheckIcon,
+  DocumentMagnifyingGlassIcon,
+  BriefcaseIcon,
+  PaintBrushIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
 const features = [
   {
-    icon: SparklesIcon,
-    title: 'AI-Powered Writing',
+    icon: DocumentMagnifyingGlassIcon,
+    title: 'RFP Deconstructor',
     description:
-      'Generate professional proposal sections in seconds using advanced AI trained on FAR-compliant government proposals.',
+      'Upload any solicitation PDF — AI extracts requirements, evaluation criteria, FAR clauses, compliance items, and key dates instantly.',
+    badge: 'NEW',
+  },
+  {
+    icon: SparklesIcon,
+    title: 'AI Proposal Writing',
+    description:
+      'Generate professional proposal sections in seconds using AI trained on FAR-compliant government proposals. Rewrite any section with one click.',
   },
   {
     icon: MagnifyingGlassIcon,
-    title: 'Opportunity Search',
+    title: 'Opportunity Scanner',
     description:
-      'Search SAM.gov for active federal contract opportunities by keyword, NAICS code, or agency directly from the platform.',
+      'Search SAM.gov for active federal contract opportunities by keyword, NAICS code, or agency. Market research with competitor analysis.',
   },
   {
     icon: CurrencyDollarIcon,
-    title: 'Interactive Pricing Builder',
+    title: 'Pricing & Cost Analysis',
     description:
-      'Build detailed cost/price proposals with labor categories, ODCs, and automatic total calculations — ready for export.',
+      'Interactive pricing builder with labor categories, ODCs, and auto-totals. Import rates from market research with one click.',
   },
   {
     icon: ShieldCheckIcon,
-    title: 'FAR Compliance Built-In',
+    title: 'Compliance Matrix',
     description:
-      'Every generated section follows Federal Acquisition Regulation standards including FAR Part 15, NIST 800-171, and CMMC.',
+      'Maps requirements to FAR/DFARS clauses automatically. Every section follows FAR Part 15, NIST 800-171, and CMMC standards.',
   },
   {
-    icon: ClockIcon,
-    title: '18 Proposal Sections',
+    icon: BriefcaseIcon,
+    title: 'Contract Management',
     description:
-      'Cover page, executive summary, technical approach, staffing plan, compliance matrix, pricing — all generated and editable.',
+      'Track awarded contracts post-award — deliverables, deadlines, status, and progress all in one Kanban-style dashboard.',
+    badge: 'NEW',
+  },
+  {
+    icon: PaintBrushIcon,
+    title: 'Canva-Like Editor',
+    description:
+      'Drag-drop section reordering, per-section styling, chart insertion, templates, and duplicate sections — design proposals your way.',
   },
   {
     icon: ChartBarIcon,
-    title: 'PDF & DOCX Export',
+    title: 'Export & Share',
     description:
-      'One-click export to professional PDF or Word documents ready for submission to contracting officers.',
+      'One-click PDF & DOCX export with page breaks. Share proposals via secure links with clients or team members.',
   },
 ];
 
 const steps = [
   {
     number: '01',
-    title: 'Set Up Your Vendor Profile',
-    description: 'Enter your company info, CAGE code, DUNS, NAICS codes, and capabilities once. Reuse across all proposals.',
+    title: 'Upload Your RFP',
+    description: 'Upload the solicitation PDF. AI instantly deconstructs it into requirements, compliance items, evaluation criteria, and key dates.',
   },
   {
     number: '02',
-    title: 'Find or Enter an Opportunity',
-    description: 'Search SAM.gov for opportunities or manually enter the RFP details, requirements, and evaluation criteria.',
+    title: 'Set Up & Search',
+    description: 'Enter your vendor profile once. Search SAM.gov for opportunities or use the extracted RFP data to auto-fill proposal details.',
   },
   {
     number: '03',
     title: 'Generate & Customize',
-    description: 'Select your sections, let AI generate the content, then edit with the rich text editor and pricing builder.',
+    description: 'AI writes all 18 sections. Drag-drop reorder, per-section styling, insert charts, apply templates — make it yours.',
   },
   {
     number: '04',
-    title: 'Export & Submit',
-    description: 'Download your polished proposal as PDF or DOCX. Review, finalize, and submit to win contracts.',
+    title: 'Export & Win',
+    description: 'Export as PDF or DOCX with page breaks. Share via secure links. Track awarded contracts in the Contract Manager.',
   },
 ];
 
@@ -235,19 +253,24 @@ export default function LandingPage() {
               From opportunity discovery to proposal submission — one platform to handle it all.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature) => {
               const Icon = feature.icon;
               return (
                 <div
                   key={feature.title}
-                  className="bg-white rounded-2xl p-7 border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                  className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:border-accent/20 transition-all relative"
                 >
-                  <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mb-5">
-                    <Icon className="w-6 h-6 text-accent" />
+                  {feature.badge && (
+                    <span className="absolute top-4 right-4 bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {feature.badge}
+                    </span>
+                  )}
+                  <div className="w-11 h-11 bg-accent/10 rounded-xl flex items-center justify-center mb-4">
+                    <Icon className="w-5.5 h-5.5 text-accent" />
                   </div>
-                  <h3 className="text-lg font-bold text-navy mb-2">{feature.title}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">{feature.description}</p>
+                  <h3 className="text-base font-bold text-navy mb-2">{feature.title}</h3>
+                  <p className="text-xs text-gray-500 leading-relaxed">{feature.description}</p>
                 </div>
               );
             })}
@@ -279,6 +302,26 @@ export default function LandingPage() {
                   <h3 className="text-lg font-bold text-navy mb-1">{step.title}</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">{step.description}</p>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Trust / Security Bar */}
+      <section className="py-12 px-6 bg-navy">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            {[
+              { icon: LockClosedIcon, label: 'AES-256 Encryption', sub: 'Data at rest & in transit' },
+              { icon: ShieldCheckIcon, label: 'FAR Compliant', sub: 'Parts 12, 15, 52 & DFARS' },
+              { icon: DocumentTextIcon, label: 'Secure AI', sub: 'Your data stays private' },
+              { icon: UserGroupIcon, label: 'Multi-Tenant', sub: 'Isolated user accounts' },
+            ].map((item) => (
+              <div key={item.label} className="flex flex-col items-center">
+                <item.icon className="w-8 h-8 text-accent mb-2" />
+                <p className="text-sm font-semibold text-white">{item.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{item.sub}</p>
               </div>
             ))}
           </div>

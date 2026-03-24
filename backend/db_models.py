@@ -378,3 +378,24 @@ class OpportunityAlert(Base):
             "last_notified_at": self.last_notified_at.isoformat() if self.last_notified_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class Contract(Base):
+    """Tracks post-award contracts for contract management dashboard."""
+    __tablename__ = "contracts"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(500), nullable=False, default="")
+    contract_number = Column(String(100), nullable=True)
+    agency = Column(String(300), nullable=True)
+    status = Column(String(50), nullable=False, default="active")
+    value = Column(Integer, default=0)
+    start_date = Column(String(20), nullable=True)
+    end_date = Column(String(20), nullable=True)
+    deliverables = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])

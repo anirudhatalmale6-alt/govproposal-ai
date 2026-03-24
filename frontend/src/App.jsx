@@ -17,6 +17,8 @@ import MarketResearch from './pages/MarketResearch';
 import AuditLog from './pages/AuditLog';
 import SharedProposal from './pages/SharedProposal';
 import VerifyEmail from './pages/VerifyEmail';
+import RfpDeconstructor from './pages/RfpDeconstructor';
+import ContractManager from './pages/ContractManager';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -156,6 +158,8 @@ function AppRoutes() {
         <Route path="/new-proposal" element={<ProposalGenerator />} />
         <Route path="/proposal-editor" element={<ProposalEditor />} />
         <Route path="/proposals" element={<Proposals />} />
+        <Route path="/rfp-deconstructor" element={<RfpDeconstructor />} />
+        <Route path="/contracts" element={<ContractManager />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />
