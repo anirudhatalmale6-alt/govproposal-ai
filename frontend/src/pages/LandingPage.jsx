@@ -443,6 +443,11 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center">
+            <div className="flex items-center justify-center gap-4 mb-3">
+              <Link to="/terms-of-service" className="text-sm text-gray-500 hover:text-white transition-colors no-underline">Terms of Service</Link>
+              <span className="text-gray-600">&middot;</span>
+              <Link to="/privacy-policy" className="text-sm text-gray-500 hover:text-white transition-colors no-underline">Privacy Policy</Link>
+            </div>
             <p className="text-sm text-gray-500">
               &copy; {new Date().getFullYear()} GovProposal AI. All rights reserved.
             </p>

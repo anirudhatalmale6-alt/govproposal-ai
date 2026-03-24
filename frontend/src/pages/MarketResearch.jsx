@@ -868,7 +868,7 @@ function PricingStrategyTab() {
     premium: { label: 'Premium', subtitle: 'Best Value', icon: StarIcon, bgGradient: 'from-accent/5 to-accent/10', border: 'border-accent/30', textColor: 'text-accent' },
   };
 
-  const fmtUsd = (n) => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtUsd = (n) => '$' + Math.round(n || 0).toLocaleString('en-US');
 
   return (
     <div>
@@ -908,19 +908,29 @@ function PricingStrategyTab() {
 
         {/* 3-Table Pricing Layout */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+          <table className="w-full text-sm border-collapse table-fixed">
+            <colgroup>
+              <col className="w-10" />
+              <col style={{ width: '25%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '14%' }} />
+              <col className="w-10" />
+            </colgroup>
             <thead>
               <tr className="bg-navy text-white">
-                <th className="px-2 py-2.5 rounded-tl-lg w-8 text-center">
+                <th className="px-2 py-2.5 rounded-tl-lg text-center">
                   <input type="checkbox" checked={rows.length > 0 && rows.every((r) => r.selected)} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded cursor-pointer accent-white" />
                 </th>
                 <th className="px-3 py-2.5 text-left font-medium text-xs">Labor Category</th>
-                <th className="px-3 py-2.5 text-right font-medium text-xs bg-blue-900/30">Cost Rate ($/hr)</th>
-                <th className="px-3 py-2.5 text-right font-medium text-xs bg-amber-900/20">Wrap Rate %</th>
-                <th className="px-3 py-2.5 text-right font-medium text-xs bg-amber-900/20">Wrapped Cost</th>
-                <th className="px-3 py-2.5 text-right font-medium text-xs bg-green-900/20">Profit Margin %</th>
-                <th className="px-3 py-2.5 text-right font-medium text-xs bg-green-900/20">Proposed Bill Rate</th>
-                <th className="px-3 py-2.5 rounded-tr-lg w-10"></th>
+                <th className="px-3 py-2.5 text-center font-medium text-xs bg-blue-900/30">Cost Rate ($/hr)</th>
+                <th className="px-3 py-2.5 text-center font-medium text-xs bg-amber-900/20">Wrap Rate %</th>
+                <th className="px-3 py-2.5 text-center font-medium text-xs bg-amber-900/20">Wrapped Cost</th>
+                <th className="px-3 py-2.5 text-center font-medium text-xs bg-green-900/20">Profit Margin %</th>
+                <th className="px-3 py-2.5 text-center font-medium text-xs bg-green-900/20">Proposed Bill Rate</th>
+                <th className="px-3 py-2.5 rounded-tr-lg"></th>
               </tr>
             </thead>
             <tbody>
@@ -943,18 +953,18 @@ function PricingStrategyTab() {
                         className="w-full min-w-[160px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
                       />
                     </td>
-                    <td className="px-2 py-1.5 border-b border-gray-100 bg-blue-50/30">
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-blue-50/30 text-center">
                       <input
                         type="number"
                         value={row.costRate}
                         onChange={(e) => updateRow(idx, 'costRate', e.target.value)}
-                        placeholder="0.00"
+                        placeholder="0"
                         min="0"
-                        step="0.01"
-                        className="w-24 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
+                        step="1"
+                        className="w-full max-w-[100px] mx-auto px-2 py-1.5 border border-gray-200 rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue/30"
                       />
                     </td>
-                    <td className="px-2 py-1.5 border-b border-gray-100 bg-amber-50/30">
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-amber-50/30 text-center">
                       <input
                         type="number"
                         value={row.wrapRate}
@@ -962,13 +972,13 @@ function PricingStrategyTab() {
                         min="0"
                         max="200"
                         step="0.5"
-                        className="w-20 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                        className="w-full max-w-[80px] mx-auto px-2 py-1.5 border border-gray-200 rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-amber-500/30"
                       />
                     </td>
-                    <td className="px-2 py-1.5 border-b border-gray-100 bg-amber-50/30 text-right">
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-amber-50/30 text-center">
                       <span className="text-xs font-semibold text-amber-700">{cost > 0 ? fmtUsd(wrapped) : '—'}</span>
                     </td>
-                    <td className="px-2 py-1.5 border-b border-gray-100 bg-green-50/30">
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-green-50/30 text-center">
                       <input
                         type="number"
                         value={row.profitMargin}
@@ -976,10 +986,10 @@ function PricingStrategyTab() {
                         min="0"
                         max="100"
                         step="0.5"
-                        className="w-20 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-green-500/30"
+                        className="w-full max-w-[80px] mx-auto px-2 py-1.5 border border-gray-200 rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-green-500/30"
                       />
                     </td>
-                    <td className="px-2 py-1.5 border-b border-gray-100 bg-green-50/30 text-right">
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-green-50/30 text-center">
                       <span className="text-xs font-bold text-green-700">{cost > 0 ? fmtUsd(billRate) : '—'}</span>
                     </td>
                     <td className="px-2 py-1.5 border-b border-gray-100 text-center">
@@ -995,14 +1005,14 @@ function PricingStrategyTab() {
                 <tr className="bg-gray-100 font-semibold">
                   <td className="px-2 py-2.5" />
                   <td className="px-2 py-2.5 text-xs text-navy">Totals / Averages</td>
-                  <td className="px-2 py-2.5 text-right text-xs text-navy">
+                  <td className="px-2 py-2.5 text-center text-xs text-navy">
                     {fmtUsd(rows.reduce((s, r) => s + (parseFloat(r.costRate) || 0), 0) / Math.max(rows.filter((r) => parseFloat(r.costRate) > 0).length, 1))}
                     <span className="text-gray-400 font-normal"> avg</span>
                   </td>
                   <td className="px-2 py-2.5" />
                   <td className="px-2 py-2.5" />
                   <td className="px-2 py-2.5" />
-                  <td className="px-2 py-2.5 text-right text-xs text-green-700">
+                  <td className="px-2 py-2.5 text-center text-xs text-green-700">
                     {fmtUsd(rows.reduce((s, r) => s + calcBillRate(parseFloat(r.costRate) || 0, r.wrapRate, r.profitMargin), 0) / Math.max(rows.filter((r) => parseFloat(r.costRate) > 0).length, 1))}
                     <span className="text-gray-400 font-normal"> avg</span>
                   </td>

@@ -19,6 +19,8 @@ import SharedProposal from './pages/SharedProposal';
 import VerifyEmail from './pages/VerifyEmail';
 import RfpDeconstructor from './pages/RfpDeconstructor';
 import ContractManager from './pages/ContractManager';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -142,6 +144,8 @@ function AppRoutes() {
       {/* Public routes — no auth required */}
       <Route path="/shared/:token" element={<SharedProposal />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/terms-of-service" element={<TermsOfService />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
       {/* Protected routes — inside Layout with sidebar/header */}
       <Route
