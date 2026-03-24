@@ -40,6 +40,7 @@ export default function Register() {
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // Password strength checks
   const passwordChecks = useMemo(
@@ -377,9 +378,29 @@ export default function Register() {
               )}
             </div>
 
+            <div className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                id="agree-terms"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent cursor-pointer"
+              />
+              <label htmlFor="agree-terms" className="text-sm text-gray-600 cursor-pointer">
+                I agree to the{' '}
+                <Link to="/terms-of-service" target="_blank" className="text-blue hover:text-blue-light font-medium no-underline">
+                  Terms and Conditions
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy-policy" target="_blank" className="text-blue hover:text-blue-light font-medium no-underline">
+                  Privacy Policy
+                </Link>
+              </label>
+            </div>
+
             <button
               type="submit"
-              disabled={loading || !allPasswordChecksPassed || password !== confirmPassword}
+              disabled={loading || !allPasswordChecksPassed || password !== confirmPassword || !agreedToTerms}
               className="w-full bg-accent hover:bg-accent-dark text-white py-3 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md"
             >
               {loading ? (
