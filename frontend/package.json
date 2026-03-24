@@ -9,10 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2",
     "axios": "^1.7.0",
+    "chart.js": "^4.5.1",
     "react": "^18.3.1",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.3.1",
     "react-quill-new": "^3.3.0",
     "react-router-dom": "^6.26.0"

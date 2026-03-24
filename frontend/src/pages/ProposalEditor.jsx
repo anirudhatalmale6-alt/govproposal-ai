@@ -3,6 +3,22 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   DocumentArrowDownIcon,
   DocumentTextIcon,
   ArrowLeftIcon,
@@ -20,8 +36,80 @@ import {
   ShareIcon,
   ClipboardDocumentIcon,
   XMarkIcon,
+  Bars3Icon,
+  DocumentDuplicateIcon,
+  RectangleStackIcon,
+  SparklesIcon,
+  ChartBarIcon,
+  PaintBrushIcon,
 } from '@heroicons/react/24/outline';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js';
+import { Pie, Bar, Line } from 'react-chartjs-2';
 import api from '../services/api';
+
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement);
+
+// Chart templates for proposal sections
+const CHART_TEMPLATES = {
+  budget_pie: {
+    label: 'Budget Breakdown (Pie)',
+    type: 'pie',
+    data: {
+      labels: ['Labor', 'Materials', 'Travel', 'ODCs', 'Overhead'],
+      datasets: [{
+        data: [45, 20, 10, 15, 10],
+        backgroundColor: ['#1e3a5f', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
+      }],
+    },
+  },
+  timeline_bar: {
+    label: 'Project Timeline (Bar)',
+    type: 'bar',
+    data: {
+      labels: ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5'],
+      datasets: [{
+        label: 'Duration (Months)',
+        data: [3, 4, 6, 3, 2],
+        backgroundColor: '#1e3a5f',
+        borderRadius: 4,
+      }],
+    },
+  },
+  staffing_bar: {
+    label: 'Staffing Plan (Bar)',
+    type: 'bar',
+    data: {
+      labels: ['Project Manager', 'Sr. Developer', 'Jr. Developer', 'QA Engineer', 'BA'],
+      datasets: [{
+        label: 'FTEs',
+        data: [1, 3, 4, 2, 1],
+        backgroundColor: '#3b82f6',
+        borderRadius: 4,
+      }],
+    },
+  },
+  performance_line: {
+    label: 'Performance Metrics (Line)',
+    type: 'line',
+    data: {
+      labels: ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6'],
+      datasets: [{
+        label: 'KPI Score',
+        data: [70, 75, 82, 88, 92, 95],
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16,185,129,0.1)',
+        fill: true,
+        tension: 0.3,
+      }],
+    },
+  },
+};
+
+function generateChartPlaceholder(chartType) {
+  const tpl = CHART_TEMPLATES[chartType];
+  if (!tpl) return '';
+  return `<div data-chart-type="${chartType}" class="proposal-chart-placeholder" style="text-align:center;padding:12px;margin:16px 0;border:2px dashed #cbd5e1;border-radius:8px;background:#f8fafc"><p style="font-weight:600;color:#1e3a5f;margin:0">📊 ${tpl.label}</p><p style="font-size:12px;color:#64748b;margin:4px 0 0">Chart will render in preview &amp; export</p></div>`;
+}
 
 const sectionLabels = {
   cover_page: 'Cover Page',
@@ -43,6 +131,135 @@ const sectionLabels = {
   implementation_timeline: 'Implementation Timeline',
   compliance_checklist: 'Compliance Checklist',
 };
+
+// ─── Proposal Templates ──────────────────────────────────────────────────────
+const PROPOSAL_TEMPLATES = [
+  {
+    id: 'full',
+    name: 'Full Proposal',
+    description: 'All 18 sections — comprehensive government proposal',
+    icon: '📋',
+    sections: Object.keys(sectionLabels),
+  },
+  {
+    id: 'it-services',
+    name: 'IT Services',
+    description: 'Focused on technical approach, staffing, and pricing',
+    icon: '💻',
+    sections: [
+      'cover_page', 'executive_summary', 'vendor_profile', 'capability_statement',
+      'past_performance', 'technical_approach', 'staffing_plan', 'key_personnel',
+      'cost_price_proposal', 'quality_assurance', 'compliance_matrix',
+    ],
+  },
+  {
+    id: 'small-business',
+    name: 'Small Business',
+    description: 'Emphasizes socioeconomic status and subcontracting',
+    icon: '🏢',
+    sections: [
+      'cover_page', 'executive_summary', 'vendor_profile', 'socioeconomic_status',
+      'capability_statement', 'past_performance', 'technical_approach',
+      'cost_price_proposal', 'subcontracting_plan', 'compliance_checklist',
+    ],
+  },
+  {
+    id: 'consulting',
+    name: 'Consulting & Advisory',
+    description: 'Management-focused with risk mitigation and transition',
+    icon: '📊',
+    sections: [
+      'cover_page', 'executive_summary', 'vendor_profile', 'past_performance',
+      'technical_approach', 'management_approach', 'staffing_plan', 'key_personnel',
+      'cost_price_proposal', 'risk_mitigation', 'transition_plan',
+    ],
+  },
+  {
+    id: 'quick',
+    name: 'Quick Response',
+    description: 'Minimal sections for simple RFQs and task orders',
+    icon: '⚡',
+    sections: [
+      'cover_page', 'executive_summary', 'technical_approach',
+      'cost_price_proposal', 'compliance_checklist',
+    ],
+  },
+];
+
+// ─── Sortable Sidebar Item ───────────────────────────────────────────────────
+function SortableSidebarItem({
+  id, isSkipped, isActive, isCostSection, label,
+  onToggleInclude, onScrollTo, onDuplicate,
+}) {
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-0.5 group">
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="p-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+        title="Drag to reorder"
+      >
+        <Bars3Icon className="w-3.5 h-3.5" />
+      </button>
+      {/* Checkbox */}
+      <input
+        type="checkbox"
+        checked={!isSkipped}
+        onChange={onToggleInclude}
+        className="w-3.5 h-3.5 rounded cursor-pointer accent-navy flex-shrink-0"
+        title={isSkipped ? 'Click to include section' : 'Click to skip section'}
+      />
+      {/* Section name */}
+      <button
+        onClick={onScrollTo}
+        className={`flex-1 text-left px-2 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+          isSkipped
+            ? 'text-gray-300 line-through'
+            : isActive
+              ? 'bg-navy text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
+        }`}
+      >
+        <div className="flex items-center gap-1.5">
+          {isCostSection ? (
+            <CurrencyDollarIcon
+              className={`w-3.5 h-3.5 flex-shrink-0 ${
+                isSkipped ? 'text-gray-300' : isActive ? 'text-accent' : 'text-green-400'
+              }`}
+            />
+          ) : (
+            <CheckCircleIcon
+              className={`w-3.5 h-3.5 flex-shrink-0 ${
+                isSkipped ? 'text-gray-300' : isActive ? 'text-accent' : 'text-gray-300'
+              }`}
+            />
+          )}
+          <span className="truncate text-xs">{label}</span>
+        </div>
+      </button>
+      {/* Duplicate button */}
+      <button
+        onClick={onDuplicate}
+        className="p-1 text-gray-300 hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+        title="Duplicate section"
+      >
+        <DocumentDuplicateIcon className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
 
 const quillModules = {
   toolbar: [
@@ -179,6 +396,57 @@ const defaultLineItem = () => ({
   unitRate: 0,
   total: 0,
 });
+
+// Renders section content with chart placeholders replaced by actual Chart.js charts
+function PreviewSectionContent({ content }) {
+  if (!content) return <p className="text-gray-400 italic">No content generated for this section.</p>;
+
+  // Split content by chart placeholders
+  const chartRegex = /(<div data-chart-type="([^"]+)"[^>]*>[\s\S]*?<\/div>)/gi;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = chartRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'html', value: content.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'chart', chartType: match[2] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) {
+    parts.push({ type: 'html', value: content.slice(lastIndex) });
+  }
+
+  if (parts.length === 0) {
+    return <div dangerouslySetInnerHTML={{ __html: content }} />;
+  }
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.type === 'html') {
+          return <div key={i} dangerouslySetInnerHTML={{ __html: part.value }} />;
+        }
+        const tpl = CHART_TEMPLATES[part.chartType];
+        if (!tpl) return null;
+        const ChartComponent = tpl.type === 'pie' ? Pie : tpl.type === 'line' ? Line : Bar;
+        return (
+          <div key={i} className="my-6 max-w-md mx-auto">
+            <ChartComponent
+              data={tpl.data}
+              options={{
+                responsive: true,
+                plugins: { legend: { position: tpl.type === 'pie' ? 'bottom' : 'top' } },
+                ...(tpl.type !== 'pie' ? { scales: { y: { beginAtZero: true } } } : {}),
+              }}
+            />
+          </div>
+        );
+      })}
+    </>
+  );
+}
 
 function PricingTable({ onContentUpdate }) {
   const [lineItems, setLineItems] = useState([defaultLineItem()]);
@@ -534,10 +802,12 @@ export default function ProposalEditor() {
 
   const [sections, setSections] = useState({});
   const [sectionTitles, setSectionTitles] = useState({});
+  const [sectionOrder, setSectionOrder] = useState([]);
   const [proposalTitle, setProposalTitle] = useState('Government Proposal');
   const [vendorName, setVendorName] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
   const [activeSection, setActiveSection] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
   const [exporting, setExporting] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
@@ -551,6 +821,10 @@ export default function ProposalEditor() {
   const [proposalId, setProposalId] = useState(null);
   const [opportunityDetails, setOpportunityDetails] = useState({});
   const [skippedSections, setSkippedSections] = useState(new Set());
+  const [regeneratingSection, setRegeneratingSection] = useState(null);
+  const [sectionStyles, setSectionStyles] = useState({});
+  const [showSectionStyle, setShowSectionStyle] = useState(null);
+  const [showChartPicker, setShowChartPicker] = useState(null);
 
   const toggleSectionInclude = (key) => {
     setSkippedSections((prev) => {
@@ -562,13 +836,112 @@ export default function ProposalEditor() {
   };
 
   const toggleAllSections = () => {
-    const sKeys = Object.keys(sections);
     if (skippedSections.size === 0) {
-      setSkippedSections(new Set(sKeys));
+      setSkippedSections(new Set(sectionOrder));
     } else {
       setSkippedSections(new Set());
     }
   };
+
+  // Drag-and-drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setSectionOrder((prev) => {
+        const oldIndex = prev.indexOf(active.id);
+        const newIndex = prev.indexOf(over.id);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
+
+  // Duplicate a section
+  const handleDuplicateSection = (key) => {
+    const newKey = `${key}_copy_${Date.now()}`;
+    setSections((prev) => ({ ...prev, [newKey]: prev[key] || '' }));
+    setSectionTitles((prev) => ({
+      ...prev,
+      [newKey]: `${prev[key] || sectionLabels[key] || key} (Copy)`,
+    }));
+    setSectionOrder((prev) => {
+      const idx = prev.indexOf(key);
+      const next = [...prev];
+      next.splice(idx + 1, 0, newKey);
+      return next;
+    });
+  };
+
+  // Apply a template
+  const handleApplyTemplate = (template) => {
+    const newSkipped = new Set();
+    for (const key of sectionOrder) {
+      if (!template.sections.includes(key)) {
+        newSkipped.add(key);
+      }
+    }
+    setSkippedSections(newSkipped);
+    // Reorder sections to match template order
+    setSectionOrder((prev) => {
+      const inTemplate = template.sections.filter((k) => prev.includes(k));
+      const notInTemplate = prev.filter((k) => !template.sections.includes(k));
+      return [...inTemplate, ...notInTemplate];
+    });
+    setShowTemplates(false);
+  };
+
+  // AI Regenerate a single section
+  const handleRegenerateSection = async (key) => {
+    if (regeneratingSection) return;
+    setRegeneratingSection(key);
+    try {
+      // Build context from other sections
+      const contextParts = sectionKeys
+        .filter((k) => k !== key && !skippedSections.has(k) && sections[k])
+        .slice(0, 5)
+        .map((k) => `${sectionLabels[k] || k}: ${(sections[k] || '').replace(/<[^>]+>/g, '').slice(0, 300)}`);
+
+      const prompt = `You are writing a FAR-compliant US government contract proposal.
+Regenerate the "${sectionLabels[key] || key}" section with improved, professional content.
+The proposal title is: "${proposalTitle}"
+${vendorName ? `Vendor/Company: ${vendorName}` : ''}
+
+Context from other sections:
+${contextParts.join('\n\n')}
+
+Write the "${sectionLabels[key] || key}" section in rich HTML format with proper headings, bullet points, and professional government contracting language. Be specific and detailed.`;
+
+      const res = await api.post('/api/proposals/generate-section', { prompt });
+      if (res.data?.content) {
+        handleContentChange(key, res.data.content);
+      }
+    } catch (err) {
+      alert(`AI regeneration failed: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setRegeneratingSection(null);
+    }
+  };
+
+  // Per-section style update
+  const updateSectionStyle = (key, prop, value) => {
+    setSectionStyles((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] || {}), [prop]: value },
+    }));
+  };
+
+  // Insert chart into section
+  const insertChartToSection = (key, chartType) => {
+    const chartHtml = generateChartPlaceholder(chartType, key);
+    const current = sections[key] || '';
+    handleContentChange(key, current + chartHtml);
+    setShowChartPicker(null);
+  };
+
   const quillRefs = useRef({});
 
   // Load company logo from vendor profile
@@ -606,6 +979,7 @@ export default function ProposalEditor() {
       }
       setSections(parsed);
       setSectionTitles(titles);
+      setSectionOrder(Object.keys(parsed));
 
       const firstKey = Object.keys(parsed)[0];
       if (firstKey) setActiveSection(firstKey);
@@ -672,11 +1046,11 @@ export default function ProposalEditor() {
     setExporting(format);
     try {
       const exportSections = {};
-      for (const [key, content] of Object.entries(sections)) {
+      for (const key of sectionKeys) {
         if (skippedSections.has(key)) continue;
         exportSections[key] = {
           title: sectionTitles[key] || sectionLabels[key] || key,
-          content: content,
+          content: sections[key] || '',
         };
       }
       const payload = {
@@ -705,7 +1079,7 @@ export default function ProposalEditor() {
     }
   };
 
-  const sectionKeys = Object.keys(sections);
+  const sectionKeys = sectionOrder.length > 0 ? sectionOrder : Object.keys(sections);
 
   if (sectionKeys.length === 0) {
     return (
@@ -892,61 +1266,74 @@ export default function ProposalEditor() {
             sidebarOpen ? 'block' : 'hidden lg:block'
           }`}
         >
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
+          <div className="p-3">
+            {/* Header with actions */}
+            <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Sections
               </p>
-              <button
-                onClick={toggleAllSections}
-                className="text-xs font-medium text-blue hover:text-blue-dark transition-colors cursor-pointer"
-              >
-                {skippedSections.size === 0 ? 'Deselect All' : 'Select All'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowTemplates(!showTemplates)}
+                  className="text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer flex items-center gap-1"
+                  title="Apply template"
+                >
+                  <RectangleStackIcon className="w-3.5 h-3.5" />
+                  Templates
+                </button>
+                <button
+                  onClick={toggleAllSections}
+                  className="text-xs font-medium text-blue hover:text-blue-dark transition-colors cursor-pointer"
+                >
+                  {skippedSections.size === 0 ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
             </div>
-            <nav className="space-y-1">
-              {sectionKeys.map((key) => {
-                const isSkipped = skippedSections.has(key);
-                return (
-                  <div key={key} className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={!isSkipped}
-                      onChange={() => toggleSectionInclude(key)}
-                      className="w-3.5 h-3.5 rounded cursor-pointer accent-navy flex-shrink-0"
-                      title={isSkipped ? 'Click to include section' : 'Click to skip section'}
-                    />
+
+            {/* Template Picker */}
+            {showTemplates && (
+              <div className="mb-3 bg-gray-50 rounded-lg p-2.5 border border-gray-200">
+                <p className="text-xs font-semibold text-navy mb-2">Choose a Template</p>
+                <div className="space-y-1.5">
+                  {PROPOSAL_TEMPLATES.map((tpl) => (
                     <button
-                      onClick={() => scrollToSection(key)}
-                      className={`flex-1 text-left px-2 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                        isSkipped
-                          ? 'text-gray-300 line-through'
-                          : activeSection === key
-                            ? 'bg-navy text-white shadow-sm'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
-                      }`}
+                      key={tpl.id}
+                      onClick={() => handleApplyTemplate(tpl)}
+                      className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        {key === 'cost_price_proposal' ? (
-                          <CurrencyDollarIcon
-                            className={`w-4 h-4 flex-shrink-0 ${
-                              isSkipped ? 'text-gray-300' : activeSection === key ? 'text-accent' : 'text-green-400'
-                            }`}
-                          />
-                        ) : (
-                          <CheckCircleIcon
-                            className={`w-4 h-4 flex-shrink-0 ${
-                              isSkipped ? 'text-gray-300' : activeSection === key ? 'text-accent' : 'text-gray-300'
-                            }`}
-                          />
-                        )}
-                        {sectionLabels[key] || key}
+                        <span className="text-base">{tpl.icon}</span>
+                        <div>
+                          <p className="text-xs font-semibold text-navy">{tpl.name}</p>
+                          <p className="text-[10px] text-gray-400">{tpl.description}</p>
+                        </div>
                       </div>
                     </button>
-                  </div>
-                );
-              })}
-            </nav>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Draggable Section List */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={sectionKeys} strategy={verticalListSortingStrategy}>
+                <nav className="space-y-0.5">
+                  {sectionKeys.map((key) => (
+                    <SortableSidebarItem
+                      key={key}
+                      id={key}
+                      isSkipped={skippedSections.has(key)}
+                      isActive={activeSection === key}
+                      isCostSection={key === 'cost_price_proposal'}
+                      label={sectionTitles[key] || sectionLabels[key] || key}
+                      onToggleInclude={() => toggleSectionInclude(key)}
+                      onScrollTo={() => scrollToSection(key)}
+                      onDuplicate={() => handleDuplicateSection(key)}
+                    />
+                  ))}
+                </nav>
+              </SortableContext>
+            </DndContext>
           </div>
         </aside>
 
@@ -1178,7 +1565,7 @@ export default function ProposalEditor() {
                         <h2
                           className="text-xl font-bold"
                           style={{
-                            color: {
+                            color: sectionStyles[key]?.headingColor || {
                               navy: '#1e3a5f', blue: '#2563eb', green: '#059669',
                               red: '#dc2626', purple: '#7c3aed', gray: '#374151',
                             }[previewTheme] || '#1e3a5f',
@@ -1188,10 +1575,15 @@ export default function ProposalEditor() {
                         </h2>
                       </div>
                       <div
-                        className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-                        style={{ fontFamily: previewFont }}
-                        dangerouslySetInnerHTML={{ __html: sections[key] || '<p class="text-gray-400 italic">No content generated for this section.</p>' }}
-                      />
+                        className="prose prose-sm max-w-none leading-relaxed"
+                        style={{
+                          fontFamily: sectionStyles[key]?.fontFamily || previewFont,
+                          fontSize: sectionStyles[key]?.fontSize || undefined,
+                          color: sectionStyles[key]?.color || '#374151',
+                        }}
+                      >
+                        <PreviewSectionContent content={sections[key] || ''} />
+                      </div>
                     </div>
                   ))}
 
@@ -1227,12 +1619,133 @@ export default function ProposalEditor() {
                   <h2 className="text-base font-semibold text-navy">
                     {sectionLabels[key] || key}
                   </h2>
-                  {key === 'cost_price_proposal' && (
-                    <span className="ml-auto text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                      Interactive Pricing
-                    </span>
-                  )}
+                  <div className="ml-auto flex items-center gap-1.5">
+                    {key === 'cost_price_proposal' && (
+                      <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                        Interactive Pricing
+                      </span>
+                    )}
+                    {/* AI Regenerate */}
+                    {key !== 'cost_price_proposal' && (
+                      <button
+                        onClick={() => handleRegenerateSection(key)}
+                        disabled={!!regeneratingSection}
+                        className="flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-md transition-all cursor-pointer disabled:opacity-50"
+                        title="AI Regenerate this section"
+                      >
+                        {regeneratingSection === key ? (
+                          <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <SparklesIcon className="w-3 h-3" />
+                        )}
+                        {regeneratingSection === key ? 'Generating...' : 'AI Rewrite'}
+                      </button>
+                    )}
+                    {/* Insert Chart */}
+                    {key !== 'cost_price_proposal' && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowChartPicker(showChartPicker === key ? null : key)}
+                          className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md transition-all cursor-pointer"
+                          title="Insert chart"
+                        >
+                          <ChartBarIcon className="w-3 h-3" />
+                          Chart
+                        </button>
+                        {showChartPicker === key && (
+                          <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 p-2">
+                            <p className="text-xs font-semibold text-navy px-2 py-1 mb-1">Insert Chart</p>
+                            {Object.entries(CHART_TEMPLATES).map(([cKey, cTpl]) => (
+                              <button
+                                key={cKey}
+                                onClick={() => insertChartToSection(key, cKey)}
+                                className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-blue-50 transition-colors cursor-pointer"
+                              >
+                                {cTpl.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Section Style */}
+                    <button
+                      onClick={() => setShowSectionStyle(showSectionStyle === key ? null : key)}
+                      className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-all cursor-pointer ${
+                        showSectionStyle === key
+                          ? 'text-white bg-navy'
+                          : 'text-gray-500 hover:text-navy bg-gray-50 hover:bg-gray-100'
+                      }`}
+                      title="Section styling"
+                    >
+                      <PaintBrushIcon className="w-3 h-3" />
+                      Style
+                    </button>
+                  </div>
                 </div>
+                {/* Per-section style panel */}
+                {showSectionStyle === key && (
+                  <div className="border-b border-gray-100 px-6 py-3 bg-gray-50/80 flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-500">Font:</label>
+                      <select
+                        value={sectionStyles[key]?.fontFamily || ''}
+                        onChange={(e) => updateSectionStyle(key, 'fontFamily', e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue/30"
+                      >
+                        <option value="">Default</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="'Times New Roman', serif">Times New Roman</option>
+                        <option value="Arial, sans-serif">Arial</option>
+                        <option value="Calibri, sans-serif">Calibri</option>
+                        <option value="'Courier New', monospace">Courier New</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-500">Size:</label>
+                      <select
+                        value={sectionStyles[key]?.fontSize || ''}
+                        onChange={(e) => updateSectionStyle(key, 'fontSize', e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue/30"
+                      >
+                        <option value="">Default</option>
+                        <option value="12px">Small (12px)</option>
+                        <option value="14px">Medium (14px)</option>
+                        <option value="16px">Large (16px)</option>
+                        <option value="18px">X-Large (18px)</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-500">Color:</label>
+                      <input
+                        type="color"
+                        value={sectionStyles[key]?.color || '#374151'}
+                        onChange={(e) => updateSectionStyle(key, 'color', e.target.value)}
+                        className="w-6 h-6 rounded border border-gray-200 cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-500">Heading:</label>
+                      <input
+                        type="color"
+                        value={sectionStyles[key]?.headingColor || '#1e3a5f'}
+                        onChange={(e) => updateSectionStyle(key, 'headingColor', e.target.value)}
+                        className="w-6 h-6 rounded border border-gray-200 cursor-pointer"
+                      />
+                    </div>
+                    {sectionStyles[key] && Object.keys(sectionStyles[key]).length > 0 && (
+                      <button
+                        onClick={() => setSectionStyles((prev) => { const n = { ...prev }; delete n[key]; return n; })}
+                        className="text-xs text-red-500 hover:text-red-700 cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="p-4">
                   {key === 'cost_price_proposal' ? (
                     <PricingTable
