@@ -716,12 +716,18 @@ function CompetitorTab() {
 // ─── TAB 3: Pricing Strategy ───────────────────────────────────────────────────
 
 function PricingStrategyTab() {
-  const [rows, setRows] = useState([{ category: '', rate: '' }]);
+  const [rows, setRows] = useState([{ category: '', costRate: '', wrapRate: 35, profitMargin: 10, selected: false }]);
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [inserted, setInserted] = useState(false);
+  const [insertedSelected, setInsertedSelected] = useState(false);
+  const csvInputRef = { current: null };
+
+  // Calculate bill rate: costRate * (1 + wrapRate/100) * (1 + profitMargin/100)
+  const calcWrappedRate = (cost, wrap) => cost * (1 + (wrap || 0) / 100);
+  const calcBillRate = (cost, wrap, profit) => calcWrappedRate(cost, wrap) * (1 + (profit || 0) / 100);
 
   const handleInsertToPricing = (stratKey) => {
     const strategy = results?.strategies?.[stratKey];
@@ -741,8 +747,62 @@ function PricingStrategyTab() {
     setTimeout(() => { setInserted(false); setSelectedStrategy(null); }, 3000);
   };
 
+  // Insert selected rows to proposal pricing
+  const handleInsertSelected = () => {
+    const selected = rows.filter((r) => r.selected && r.category.trim() && r.costRate);
+    if (selected.length === 0) return;
+    const existing = JSON.parse(localStorage.getItem('pricing_labor_imports') || '[]');
+    selected.forEach((r) => {
+      const billRate = calcBillRate(parseFloat(r.costRate) || 0, r.wrapRate, r.profitMargin);
+      existing.push({
+        category: r.category,
+        rate: Math.round(billRate * 100) / 100,
+        source: 'Pricing Strategy (Custom)',
+        timestamp: new Date().toISOString(),
+      });
+    });
+    localStorage.setItem('pricing_labor_imports', JSON.stringify(existing));
+    setInsertedSelected(true);
+    setTimeout(() => setInsertedSelected(false), 3000);
+  };
+
+  // CSV Import
+  const handleCsvImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+      const newRows = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Skip header row
+        if (i === 0 && (line.toLowerCase().includes('category') || line.toLowerCase().includes('labor'))) continue;
+        const parts = line.split(/[,\t]+/);
+        if (parts.length >= 2) {
+          newRows.push({
+            category: parts[0].trim().replace(/^["']|["']$/g, ''),
+            costRate: parseFloat(parts[1].replace(/[^0-9.]/g, '')) || '',
+            wrapRate: parts[2] ? parseFloat(parts[2]) || 35 : 35,
+            profitMargin: parts[3] ? parseFloat(parts[3]) || 10 : 10,
+            selected: false,
+          });
+        }
+      }
+      if (newRows.length > 0) {
+        setRows((prev) => {
+          const empty = prev.length === 1 && !prev[0].category && !prev[0].costRate;
+          return empty ? newRows : [...prev, ...newRows];
+        });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const addRow = () => {
-    setRows((prev) => [...prev, { category: '', rate: '' }]);
+    setRows((prev) => [...prev, { category: '', costRate: '', wrapRate: 35, profitMargin: 10, selected: false }]);
   };
 
   const removeRow = (index) => {
@@ -756,33 +816,35 @@ function PricingStrategyTab() {
     );
   };
 
-  const hasValidRows = rows.some((r) => r.category.trim() && r.rate);
+  const toggleSelect = (index) => {
+    setRows((prev) => prev.map((r, i) => i === index ? { ...r, selected: !r.selected } : r));
+  };
+
+  const toggleSelectAll = () => {
+    const allSelected = rows.every((r) => r.selected);
+    setRows((prev) => prev.map((r) => ({ ...r, selected: !allSelected })));
+  };
+
+  const selectedCount = rows.filter((r) => r.selected).length;
+  const hasValidRows = rows.some((r) => r.category.trim() && r.costRate);
 
   const handleGetRecommendation = async () => {
     if (!hasValidRows) return;
-
     setLoading(true);
     setError('');
-
     try {
       const labor_categories = rows
-        .filter((r) => r.category.trim() && r.rate)
-        .map((r) => ({ category: r.category.trim(), rate: parseFloat(r.rate) }));
-
-      const response = await api.post('/api/market-research/pricing-recommendation', {
-        labor_categories,
-      });
-      // Normalize field names from backend
+        .filter((r) => r.category.trim() && r.costRate)
+        .map((r) => ({ category: r.category.trim(), rate: calcBillRate(parseFloat(r.costRate) || 0, r.wrapRate, r.profitMargin) }));
+      const response = await api.post('/api/market-research/pricing-recommendation', { labor_categories });
       const data = response.data;
       if (data.strategies) {
         for (const key of Object.keys(data.strategies)) {
           const s = data.strategies[key];
-          // Map estimated_win_probability string to win_probability number
           if (s.estimated_win_probability && s.win_probability == null) {
             const match = String(s.estimated_win_probability).match(/(\d+)/);
             s.win_probability = match ? parseInt(match[1]) : null;
           }
-          // Map suggested_rate to recommended_rate in rates array
           if (s.rates) {
             s.rates = s.rates.map((r) => ({
               ...r,
@@ -793,11 +855,7 @@ function PricingStrategyTab() {
       }
       setResults(data);
     } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-        err.message ||
-        'Failed to get pricing recommendation. Please try again.'
-      );
+      setError(err.response?.data?.detail || err.message || 'Failed to get pricing recommendation.');
       setResults(null);
     } finally {
       setLoading(false);
@@ -805,110 +863,154 @@ function PricingStrategyTab() {
   };
 
   const strategyConfig = {
-    competitive: {
-      label: 'Competitive',
-      subtitle: 'Low Margin',
-      icon: BoltIcon,
-      color: 'blue',
-      bgGradient: 'from-blue/5 to-blue/10',
-      border: 'border-blue/30',
-      textColor: 'text-blue',
-      badgeColor: 'bg-blue/10 text-blue',
-      description: 'Aggressive pricing to maximize win probability. Best for breaking into new agencies.',
-    },
-    balanced: {
-      label: 'Balanced',
-      subtitle: 'Market Rate',
-      icon: ScaleIcon,
-      color: 'navy',
-      bgGradient: 'from-navy/5 to-navy/10',
-      border: 'border-navy/30',
-      textColor: 'text-navy',
-      badgeColor: 'bg-navy/10 text-navy',
-      description: 'Fair-market pricing that balances competitiveness with sustainable margins.',
-    },
-    premium: {
-      label: 'Premium',
-      subtitle: 'Best Value',
-      icon: StarIcon,
-      color: 'accent',
-      bgGradient: 'from-accent/5 to-accent/10',
-      border: 'border-accent/30',
-      textColor: 'text-accent',
-      badgeColor: 'bg-accent/10 text-accent',
-      description: 'Higher rates justified through superior qualifications and past performance.',
-    },
+    competitive: { label: 'Competitive', subtitle: 'Low Margin', icon: BoltIcon, bgGradient: 'from-blue/5 to-blue/10', border: 'border-blue/30', textColor: 'text-blue' },
+    balanced: { label: 'Balanced', subtitle: 'Market Rate', icon: ScaleIcon, bgGradient: 'from-navy/5 to-navy/10', border: 'border-navy/30', textColor: 'text-navy' },
+    premium: { label: 'Premium', subtitle: 'Best Value', icon: StarIcon, bgGradient: 'from-accent/5 to-accent/10', border: 'border-accent/30', textColor: 'text-accent' },
   };
+
+  const fmtUsd = (n) => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div>
-      {/* Input Form */}
+      {/* Input Form with Import */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ScaleIcon className="w-5 h-5 text-navy" />
             <h2 className="text-base font-semibold text-navy">Labor Categories for Bid</h2>
           </div>
-          <button
-            onClick={addRow}
-            className="flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-dark transition-all cursor-pointer"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Add Category
-          </button>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
+              <DocumentTextIcon className="w-4 h-4" />
+              Import CSV
+              <input
+                ref={(el) => { csvInputRef.current = el; }}
+                type="file"
+                accept=".csv,.tsv,.txt"
+                onChange={handleCsvImport}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={addRow}
+              className="flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-dark transition-all cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add Row
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-3">
-          {/* Header */}
-          <div className="grid grid-cols-12 gap-3 px-1">
-            <div className="col-span-6 md:col-span-7">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Labor Category</p>
-            </div>
-            <div className="col-span-4 md:col-span-4">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Proposed Rate ($/hr)</p>
-            </div>
-            <div className="col-span-2 md:col-span-1" />
-          </div>
+        {/* CSV format hint */}
+        <p className="text-xs text-gray-400 mb-4">
+          CSV format: Category, Cost Rate, Wrap Rate %, Profit Margin % (one per line). Wrap and Margin are optional (defaults: 35%, 10%).
+        </p>
 
-          {/* Rows */}
-          {rows.map((row, index) => (
-            <div key={index} className="grid grid-cols-12 gap-3 items-center">
-              <div className="col-span-6 md:col-span-7">
-                <input
-                  list="pricing-labor-categories"
-                  type="text"
-                  value={row.category}
-                  onChange={(e) => updateRow(index, 'category', e.target.value)}
-                  placeholder="e.g., Software Engineer"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
-                />
-              </div>
-              <div className="col-span-4 md:col-span-4">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                  <input
-                    type="number"
-                    value={row.rate}
-                    onChange={(e) => updateRow(index, 'rate', e.target.value)}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                    className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
-                  />
-                </div>
-              </div>
-              <div className="col-span-2 md:col-span-1 flex justify-center">
-                <button
-                  onClick={() => removeRow(index)}
-                  disabled={rows.length <= 1}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                  title="Remove row"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+        {/* 3-Table Pricing Layout */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-navy text-white">
+                <th className="px-2 py-2.5 rounded-tl-lg w-8 text-center">
+                  <input type="checkbox" checked={rows.length > 0 && rows.every((r) => r.selected)} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded cursor-pointer accent-white" />
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-xs">Labor Category</th>
+                <th className="px-3 py-2.5 text-right font-medium text-xs bg-blue-900/30">Cost Rate ($/hr)</th>
+                <th className="px-3 py-2.5 text-right font-medium text-xs bg-amber-900/20">Wrap Rate %</th>
+                <th className="px-3 py-2.5 text-right font-medium text-xs bg-amber-900/20">Wrapped Cost</th>
+                <th className="px-3 py-2.5 text-right font-medium text-xs bg-green-900/20">Profit Margin %</th>
+                <th className="px-3 py-2.5 text-right font-medium text-xs bg-green-900/20">Proposed Bill Rate</th>
+                <th className="px-3 py-2.5 rounded-tr-lg w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => {
+                const cost = parseFloat(row.costRate) || 0;
+                const wrapped = calcWrappedRate(cost, row.wrapRate);
+                const billRate = calcBillRate(cost, row.wrapRate, row.profitMargin);
+                return (
+                  <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${row.selected ? 'bg-blue-50/60' : ''}`}>
+                    <td className="px-2 py-1.5 border-b border-gray-100 text-center">
+                      <input type="checkbox" checked={row.selected} onChange={() => toggleSelect(idx)} className="w-3.5 h-3.5 rounded cursor-pointer accent-navy" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input
+                        list="pricing-labor-categories"
+                        type="text"
+                        value={row.category}
+                        onChange={(e) => updateRow(idx, 'category', e.target.value)}
+                        placeholder="e.g., Software Engineer"
+                        className="w-full min-w-[160px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-blue-50/30">
+                      <input
+                        type="number"
+                        value={row.costRate}
+                        onChange={(e) => updateRow(idx, 'costRate', e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        className="w-24 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-amber-50/30">
+                      <input
+                        type="number"
+                        value={row.wrapRate}
+                        onChange={(e) => updateRow(idx, 'wrapRate', parseFloat(e.target.value) || 0)}
+                        min="0"
+                        max="200"
+                        step="0.5"
+                        className="w-20 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-amber-50/30 text-right">
+                      <span className="text-xs font-semibold text-amber-700">{cost > 0 ? fmtUsd(wrapped) : '—'}</span>
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-green-50/30">
+                      <input
+                        type="number"
+                        value={row.profitMargin}
+                        onChange={(e) => updateRow(idx, 'profitMargin', parseFloat(e.target.value) || 0)}
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        className="w-20 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-green-500/30"
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 bg-green-50/30 text-right">
+                      <span className="text-xs font-bold text-green-700">{cost > 0 ? fmtUsd(billRate) : '—'}</span>
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 text-center">
+                      <button onClick={() => removeRow(idx)} disabled={rows.length <= 1} className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-30 cursor-pointer" title="Remove">
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Totals row */}
+              {rows.some((r) => parseFloat(r.costRate) > 0) && (
+                <tr className="bg-gray-100 font-semibold">
+                  <td className="px-2 py-2.5" />
+                  <td className="px-2 py-2.5 text-xs text-navy">Totals / Averages</td>
+                  <td className="px-2 py-2.5 text-right text-xs text-navy">
+                    {fmtUsd(rows.reduce((s, r) => s + (parseFloat(r.costRate) || 0), 0) / Math.max(rows.filter((r) => parseFloat(r.costRate) > 0).length, 1))}
+                    <span className="text-gray-400 font-normal"> avg</span>
+                  </td>
+                  <td className="px-2 py-2.5" />
+                  <td className="px-2 py-2.5" />
+                  <td className="px-2 py-2.5" />
+                  <td className="px-2 py-2.5 text-right text-xs text-green-700">
+                    {fmtUsd(rows.reduce((s, r) => s + calcBillRate(parseFloat(r.costRate) || 0, r.wrapRate, r.profitMargin), 0) / Math.max(rows.filter((r) => parseFloat(r.costRate) > 0).length, 1))}
+                    <span className="text-gray-400 font-normal"> avg</span>
+                  </td>
+                  <td className="px-2 py-2.5" />
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
         <datalist id="pricing-labor-categories">
@@ -917,24 +1019,36 @@ function PricingStrategyTab() {
           ))}
         </datalist>
 
-        <div className="mt-6 pt-4 border-t border-gray-100">
+        {/* Action Buttons */}
+        <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-3 flex-wrap">
           <button
             onClick={handleGetRecommendation}
             disabled={loading || !hasValidRows}
             className="bg-gradient-to-r from-navy to-navy-light hover:from-navy-light hover:to-navy text-white px-8 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
           >
             {loading ? (
-              <>
-                <LoadingSpinner />
-                Analyzing Pricing...
-              </>
+              <><LoadingSpinner /> Analyzing Pricing...</>
             ) : (
-              <>
-                <SparklesIcon className="w-5 h-5" />
-                Get AI Recommendation
-              </>
+              <><SparklesIcon className="w-5 h-5" /> Get AI Recommendation</>
             )}
           </button>
+          {selectedCount > 0 && (
+            <button
+              onClick={handleInsertSelected}
+              disabled={insertedSelected}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                insertedSelected
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : 'bg-accent hover:bg-accent-dark text-white shadow-sm'
+              }`}
+            >
+              {insertedSelected ? (
+                <><CheckCircleIcon className="w-5 h-5" /> Inserted {selectedCount} to Pricing!</>
+              ) : (
+                <><PlusIcon className="w-5 h-5" /> Insert {selectedCount} Selected to Proposal Pricing</>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -946,97 +1060,56 @@ function PricingStrategyTab() {
         </div>
       )}
 
-      {/* Results */}
+      {/* AI Strategy Results */}
       {results && !loading && !error && (
         <div className="space-y-6">
-          {/* Strategy Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {['competitive', 'balanced', 'premium'].map((stratKey) => {
               const config = strategyConfig[stratKey];
               const strategy = results.strategies?.[stratKey];
               if (!strategy) return null;
-
               const Icon = config.icon;
-
               return (
-                <div
-                  key={stratKey}
-                  className={`bg-gradient-to-br ${config.bgGradient} rounded-xl shadow-sm border-2 ${config.border} p-6 relative overflow-hidden`}
-                >
-                  {/* Header */}
+                <div key={stratKey} className={`bg-gradient-to-br ${config.bgGradient} rounded-xl shadow-sm border-2 ${config.border} p-6`}>
                   <div className="flex items-center gap-2 mb-1">
                     <Icon className={`w-5 h-5 ${config.textColor}`} />
                     <h3 className={`font-bold text-lg ${config.textColor}`}>{config.label}</h3>
                   </div>
                   <p className={`text-xs ${config.textColor} opacity-70 font-medium mb-4`}>{config.subtitle}</p>
-                  <p className="text-xs text-gray-500 mb-5">{config.description}</p>
-
-                  {/* Rates per category */}
                   <div className="space-y-2 mb-5">
-                    {strategy.rates?.map((r, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
+                    {strategy.rates?.map((r, i) => (
+                      <div key={i} className="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
                         <span className="text-xs text-gray-700 truncate mr-2">{r.category}</span>
-                        <span className={`text-sm font-bold ${config.textColor} flex-shrink-0`}>
-                          {formatCurrency(r.recommended_rate)}
-                        </span>
+                        <span className={`text-sm font-bold ${config.textColor}`}>{formatCurrency(r.recommended_rate)}</span>
                       </div>
                     ))}
                   </div>
-
-                  {/* Metrics */}
                   <div className="space-y-3 pt-4 border-t border-gray-200/50">
-                    {/* Estimated Margin */}
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-500">Est. Margin</span>
-                      <span className={`text-sm font-bold ${config.textColor}`}>
-                        {strategy.estimated_margin != null ? `${strategy.estimated_margin}%` : 'N/A'}
-                      </span>
+                      <span className={`text-sm font-bold ${config.textColor}`}>{strategy.estimated_margin != null ? `${strategy.estimated_margin}%` : 'N/A'}</span>
                     </div>
-
-                    {/* Win Probability */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-gray-500">Win Probability</span>
-                        <span className={`text-xs font-bold ${config.textColor}`}>
-                          {strategy.win_probability != null ? `${strategy.win_probability}%` : 'N/A'}
-                        </span>
+                        <span className={`text-xs font-bold ${config.textColor}`}>{strategy.win_probability != null ? `${strategy.win_probability}%` : 'N/A'}</span>
                       </div>
                       {strategy.win_probability != null && (
                         <div className="h-2 bg-white/60 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              stratKey === 'competitive' ? 'bg-blue' :
-                              stratKey === 'balanced' ? 'bg-navy' : 'bg-accent'
-                            }`}
-                            style={{ width: `${Math.min(strategy.win_probability, 100)}%` }}
-                          />
+                          <div className={`h-full rounded-full transition-all ${stratKey === 'competitive' ? 'bg-blue' : stratKey === 'balanced' ? 'bg-navy' : 'bg-accent'}`} style={{ width: `${Math.min(strategy.win_probability, 100)}%` }} />
                         </div>
                       )}
                     </div>
                   </div>
-
-                  {/* Insert to Pricing Button */}
                   <div className="mt-4 pt-3 border-t border-gray-200/50">
                     <button
                       onClick={() => handleInsertToPricing(stratKey)}
                       disabled={inserted && selectedStrategy === stratKey}
                       className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                        inserted && selectedStrategy === stratKey
-                          ? 'bg-green-100 text-green-700 border border-green-300'
-                          : 'bg-white/80 hover:bg-white text-navy border border-gray-200 hover:border-navy/30 hover:shadow-sm'
+                        inserted && selectedStrategy === stratKey ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-white/80 hover:bg-white text-navy border border-gray-200 hover:border-navy/30 hover:shadow-sm'
                       }`}
                     >
-                      {inserted && selectedStrategy === stratKey ? (
-                        <>
-                          <CheckCircleIcon className="w-4 h-4" />
-                          Inserted to Pricing!
-                        </>
-                      ) : (
-                        <>
-                          <PlusIcon className="w-4 h-4" />
-                          Insert to Proposal Pricing
-                        </>
-                      )}
+                      {inserted && selectedStrategy === stratKey ? (<><CheckCircleIcon className="w-4 h-4" /> Inserted!</>) : (<><PlusIcon className="w-4 h-4" /> Insert to Proposal Pricing</>)}
                     </button>
                   </div>
                 </div>
@@ -1044,8 +1117,7 @@ function PricingStrategyTab() {
             })}
           </div>
 
-          {/* AI Insights */}
-          {results.insights && results.insights.length > 0 && (
+          {results.insights?.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <LightBulbIcon className="w-5 h-5 text-accent" />
@@ -1054,13 +1126,7 @@ function PricingStrategyTab() {
               <div className="space-y-3">
                 {results.insights.map((insight, idx) => (
                   <div key={idx} className="flex items-start gap-3 bg-gray-50 rounded-lg px-4 py-3">
-                    {insight.type === 'above' ? (
-                      <ArrowTrendingUpIcon className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    ) : insight.type === 'below' ? (
-                      <ArrowTrendingDownIcon className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <CheckCircleIcon className="w-5 h-5 text-blue flex-shrink-0 mt-0.5" />
-                    )}
+                    {insight.type === 'above' ? <ArrowTrendingUpIcon className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" /> : insight.type === 'below' ? <ArrowTrendingDownIcon className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" /> : <CheckCircleIcon className="w-5 h-5 text-blue flex-shrink-0 mt-0.5" />}
                     <p className="text-sm text-gray-700">{insight.message || insight}</p>
                   </div>
                 ))}
@@ -1068,7 +1134,6 @@ function PricingStrategyTab() {
             </div>
           )}
 
-          {/* Market Comparison Summary */}
           {results.market_comparison && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -1079,43 +1144,28 @@ function PricingStrategyTab() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 text-left">
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Your Rate</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Market Avg</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Difference</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Category</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Your Rate</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Market Avg</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Difference</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Position</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {results.market_comparison.map((comp, idx) => {
                       const diff = comp.difference_percent;
-                      const isAbove = diff > 0;
-                      const isBelow = diff < 0;
                       return (
-                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                        <tr key={idx} className="hover:bg-gray-50/50">
                           <td className="px-4 py-3 font-medium text-navy">{comp.category}</td>
                           <td className="px-4 py-3 font-semibold text-navy">{formatCurrency(comp.your_rate)}</td>
                           <td className="px-4 py-3 text-gray-600">{formatCurrency(comp.market_average)}</td>
-                          <td className={`px-4 py-3 font-semibold ${isAbove ? 'text-red-500' : isBelow ? 'text-accent' : 'text-gray-600'}`}>
+                          <td className={`px-4 py-3 font-semibold ${diff > 0 ? 'text-red-500' : diff < 0 ? 'text-accent' : 'text-gray-600'}`}>
                             {diff != null ? `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%` : 'N/A'}
                           </td>
                           <td className="px-4 py-3">
-                            {isAbove ? (
-                              <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-full text-xs font-medium">
-                                <ArrowTrendingUpIcon className="w-3 h-3" />
-                                Above Market
-                              </span>
-                            ) : isBelow ? (
-                              <span className="inline-flex items-center gap-1 bg-green-50 text-accent px-2 py-0.5 rounded-full text-xs font-medium">
-                                <ArrowTrendingDownIcon className="w-3 h-3" />
-                                Below Market
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs font-medium">
-                                <CheckCircleIcon className="w-3 h-3" />
-                                At Market
-                              </span>
-                            )}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${diff > 0 ? 'bg-red-50 text-red-600' : diff < 0 ? 'bg-green-50 text-accent' : 'bg-gray-100 text-gray-600'}`}>
+                              {diff > 0 ? 'Above' : diff < 0 ? 'Below' : 'At'} Market
+                            </span>
                           </td>
                         </tr>
                       );
@@ -1128,13 +1178,12 @@ function PricingStrategyTab() {
         </div>
       )}
 
-      {/* Initial State */}
       {!results && !loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <ScaleIcon className="w-16 h-16 text-gray-200 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Build Your Pricing Strategy</h3>
           <p className="text-gray-400 text-sm max-w-md mx-auto">
-            Add labor categories and your proposed rates above, then get AI-powered recommendations with competitive, balanced, and premium pricing strategies.
+            Add labor categories with cost rates, adjust wrap rates and profit margins, then get AI-powered recommendations.
           </p>
         </div>
       )}
