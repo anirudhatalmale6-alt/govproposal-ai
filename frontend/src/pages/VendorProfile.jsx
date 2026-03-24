@@ -379,12 +379,84 @@ export default function VendorProfile() {
   const selectClass = SELECT_CLASS;
   const labelClass = LABEL_CLASS;
 
+  const [editMode, setEditMode] = useState(true);
+
+  const handleSaveAndLock = async () => {
+    setSaving(true);
+    setSuccess('');
+    setError('');
+    try {
+      localStorage.setItem('vendorProfile', JSON.stringify(profile));
+      await api.post('/api/vendor-profile', profile);
+      setSuccess('Vendor profile saved successfully. Data will auto-fill in proposals.');
+      setEditMode(false);
+    } catch {
+      setSuccess('Profile saved locally. Data will auto-fill in proposals.');
+      setEditMode(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy">Vendor Profile</h1>
-        <p className="text-gray-500 mt-1">Manage your company information for proposal generation</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-navy">Vendor Profile</h1>
+          <p className="text-gray-500 mt-1">Manage your company information for proposal generation</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {!editMode ? (
+            <button
+              type="button"
+              onClick={() => setEditMode(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-navy hover:bg-navy-light text-white transition-all cursor-pointer shadow-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.1 2.1 0 113.001 2.948L8.122 18.177l-4.122.914.914-4.122L16.862 3.487z" /></svg>
+              Edit Profile
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSaveAndLock}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-accent hover:bg-accent-dark text-white transition-all disabled:opacity-50 cursor-pointer shadow-md"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircleIcon className="w-4 h-4" />
+                  Save Profile
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Edit mode indicator */}
+      {!editMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircleIcon className="w-5 h-5 text-blue-600" />
+            <p className="text-sm text-blue-700 font-medium">Profile saved. This data will auto-fill in your proposals.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditMode(true)}
+            className="text-xs font-semibold text-blue-700 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+          >
+            Edit
+          </button>
+        </div>
+      )}
 
       {success && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3">
@@ -400,6 +472,7 @@ export default function VendorProfile() {
       )}
 
       <form onSubmit={handleSubmit}>
+        <fieldset disabled={!editMode} className={!editMode ? 'opacity-80' : ''}>
 
         {/* ─── 1. COMPANY INFORMATION ──────────────────────────── */}
         <Section icon={BuildingOffice2Icon} title="Company Information">
@@ -914,28 +987,32 @@ export default function VendorProfile() {
         </Section>
 
         {/* Save Button */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow-md"
-          >
-            {saving ? (
-              <>
-                <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Saving...
-              </>
-            ) : (
-              <>
-                <CheckCircleIcon className="w-5 h-5" />
-                Save Profile
-              </>
-            )}
-          </button>
-        </div>
+        {editMode && (
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleSaveAndLock}
+              disabled={saving}
+              className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircleIcon className="w-5 h-5" />
+                  Save Profile
+                </>
+              )}
+            </button>
+          </div>
+        )}
+        </fieldset>
       </form>
     </div>
   );
