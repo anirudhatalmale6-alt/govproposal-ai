@@ -17,6 +17,8 @@ import {
   ClockIcon,
   DocumentMagnifyingGlassIcon,
   BriefcaseIcon,
+  TableCellsIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,6 +28,8 @@ const navItems = [
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
   { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
   { label: 'RFP Deconstructor', path: '/rfp-deconstructor', icon: DocumentMagnifyingGlassIcon },
+  { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
+  { label: 'Win Probability', path: '/win-probability', icon: TrophyIcon },
   { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
   { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
   { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },

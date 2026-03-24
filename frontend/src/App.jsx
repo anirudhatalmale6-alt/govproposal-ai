@@ -19,6 +19,8 @@ import SharedProposal from './pages/SharedProposal';
 import VerifyEmail from './pages/VerifyEmail';
 import RfpDeconstructor from './pages/RfpDeconstructor';
 import ContractManager from './pages/ContractManager';
+import ComplianceMatrix from './pages/ComplianceMatrix';
+import WinProbability from './pages/WinProbability';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 
@@ -164,6 +166,8 @@ function AppRoutes() {
         <Route path="/proposals" element={<Proposals />} />
         <Route path="/rfp-deconstructor" element={<RfpDeconstructor />} />
         <Route path="/contracts" element={<ContractManager />} />
+        <Route path="/compliance-matrix" element={<ComplianceMatrix />} />
+        <Route path="/win-probability" element={<WinProbability />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />

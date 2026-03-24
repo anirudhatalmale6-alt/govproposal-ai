@@ -813,6 +813,70 @@ SOLICITATION TEXT:
 
 
 # ============================================================
+# Compliance Analysis (authenticated)
+# ============================================================
+
+@app.post("/api/compliance/analyze")
+async def analyze_compliance(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """AI-analyze RFP text to extract structured requirements."""
+    body = await request.json()
+    text = body.get("text", "")
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="No text provided")
+
+    prompt = f"""Analyze this government RFP/solicitation text and extract ALL requirements.
+
+For each requirement found (especially sentences containing "shall", "must", "required", "mandatory", "will be required"):
+
+Return a JSON array with this exact structure:
+{{
+  "requirements": [
+    {{
+      "text": "The exact requirement text",
+      "keywords": ["shall", "must"],
+      "priority": "Critical",
+      "category": "Technical",
+      "section": "L.4.2"
+    }}
+  ]
+}}
+
+Priority levels: Critical (shall/must/mandatory), High (should/expected), Medium (may/desired), Low (optional)
+Categories: Technical, Management, Staffing, Compliance, Past Performance, Pricing, Security, Other
+
+Text to analyze:
+{text[:8000]}
+
+Return ONLY valid JSON, no markdown or extra text."""
+
+    try:
+        content = ai_service.generate_section(prompt)
+        cleaned = content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(cleaned)
+        return parsed
+    except Exception:
+        # Fallback: simple keyword extraction
+        import re
+        sentences = re.split(r'(?<=[.;])\s+|\n', text)
+        reqs = []
+        for s in sentences:
+            s = s.strip()
+            if len(s) > 20 and re.search(r'\b(shall|must|required|mandatory)\b', s, re.I):
+                keywords = re.findall(r'\b(shall|must|required|mandatory)\b', s, re.I)
+                reqs.append({
+                    "text": s,
+                    "keywords": list(set(k.lower() for k in keywords)),
+                    "priority": "Critical" if any(k.lower() in ('shall', 'must', 'mandatory') for k in keywords) else "High",
+                    "category": "Other",
+                    "section": "",
+                })
+        return {"requirements": reqs}
+
+
+# ============================================================
 # Contract Management CRUD (authenticated)
 # ============================================================
 

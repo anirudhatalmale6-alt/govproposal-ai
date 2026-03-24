@@ -822,6 +822,9 @@ export default function ProposalEditor() {
   const [opportunityDetails, setOpportunityDetails] = useState({});
   const [skippedSections, setSkippedSections] = useState(new Set());
   const [regeneratingSection, setRegeneratingSection] = useState(null);
+  const [writingTone, setWritingTone] = useState('professional');
+  const [showToneMenu, setShowToneMenu] = useState(null);
+  const [reviewStage, setReviewStage] = useState('draft');
   const [sectionStyles, setSectionStyles] = useState({});
   const [showSectionStyle, setShowSectionStyle] = useState(null);
   const [showChartPicker, setShowChartPicker] = useState(null);
@@ -905,15 +908,26 @@ export default function ProposalEditor() {
         .slice(0, 5)
         .map((k) => `${sectionLabels[k] || k}: ${(sections[k] || '').replace(/<[^>]+>/g, '').slice(0, 300)}`);
 
+      const toneInstructions = {
+        professional: 'Use formal, professional government contracting language. Be precise and authoritative.',
+        technical: 'Use highly technical language with specific methodologies, standards, and technical terminology. Focus on implementation details and technical approaches.',
+        executive: 'Write for senior executives and decision-makers. Use concise, high-impact language. Focus on outcomes, ROI, and strategic value.',
+        persuasive: 'Write persuasively to win the evaluation. Emphasize differentiators, past success, and unique value proposition. Use confident, compelling language.',
+        human: 'Write in a natural, human tone that avoids generic AI language. Use varied sentence structure, occasional first-person perspective, and authentic voice. Avoid buzzwords and cliches.',
+      };
+
       const prompt = `You are writing a FAR-compliant US government contract proposal.
-Regenerate the "${sectionLabels[key] || key}" section with improved, professional content.
+Regenerate the "${sectionLabels[key] || key}" section with improved content.
 The proposal title is: "${proposalTitle}"
 ${vendorName ? `Vendor/Company: ${vendorName}` : ''}
+
+WRITING TONE: ${writingTone.toUpperCase()}
+${toneInstructions[writingTone] || toneInstructions.professional}
 
 Context from other sections:
 ${contextParts.join('\n\n')}
 
-Write the "${sectionLabels[key] || key}" section in rich HTML format with proper headings, bullet points, and professional government contracting language. Be specific and detailed.`;
+Write the "${sectionLabels[key] || key}" section in rich HTML format with proper headings, bullet points, and government contracting language. Be specific and detailed.`;
 
       const res = await api.post('/api/proposals/generate-section', { prompt });
       if (res.data?.content) {
@@ -1602,6 +1616,63 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
           ) : (
           /* ─── EDIT MODE ───────────────────────────────────────── */
           <div className="max-w-4xl mx-auto space-y-8">
+            {/* Tone Selector + Review Stage Bar */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-wrap items-center gap-4">
+              {/* Writing Tone */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500">AI Writing Tone:</span>
+                <div className="flex gap-1">
+                  {[
+                    { value: 'professional', label: 'Professional', emoji: '📋' },
+                    { value: 'technical', label: 'Technical', emoji: '🔧' },
+                    { value: 'executive', label: 'Executive', emoji: '💼' },
+                    { value: 'persuasive', label: 'Persuasive', emoji: '🎯' },
+                    { value: 'human', label: 'Human', emoji: '🤝' },
+                  ].map(t => (
+                    <button
+                      key={t.value}
+                      onClick={() => setWritingTone(t.value)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                        writingTone === t.value
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      title={t.label}
+                    >
+                      {t.emoji} {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-6 w-px bg-gray-200 hidden md:block" />
+
+              {/* Review Stage */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500">Review Stage:</span>
+                <div className="flex gap-1">
+                  {[
+                    { value: 'draft', label: 'Draft (AI)', color: 'bg-gray-500' },
+                    { value: 'yellow', label: 'Yellow Team', color: 'bg-yellow-500' },
+                    { value: 'green', label: 'Green Team', color: 'bg-green-500' },
+                    { value: 'gold', label: 'Gold Team', color: 'bg-amber-500' },
+                  ].map(s => (
+                    <button
+                      key={s.value}
+                      onClick={() => setReviewStage(s.value)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                        reviewStage === s.value
+                          ? `${s.color} text-white shadow-sm`
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${reviewStage === s.value ? 'bg-white' : s.color}`} />
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
             {sectionKeys.filter((key) => !skippedSections.has(key)).map((key) => (
               <div
                 key={key}
