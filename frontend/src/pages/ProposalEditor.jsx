@@ -105,6 +105,123 @@ const CHART_TEMPLATES = {
   },
 };
 
+// Auto-graphics templates (rendered as HTML diagrams)
+const GRAPHICS_TEMPLATES = {
+  org_chart: {
+    label: 'Organization Chart',
+    icon: '🏢',
+    generate: () => `
+<div style="text-align:center;padding:20px;margin:16px 0;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0">
+  <h4 style="color:#1e3a5f;margin:0 0 16px">Project Organization Structure</h4>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div style="background:#1e3a5f;color:white;padding:10px 24px;border-radius:8px;font-weight:600;font-size:13px">Program Manager</div>
+    <div style="width:2px;height:20px;background:#cbd5e1"></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="background:#3b82f6;color:white;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500">Technical Lead</div>
+        <div style="width:1px;height:12px;background:#cbd5e1"></div>
+        <div style="display:flex;gap:8px">
+          <div style="background:#e0e7ff;color:#3b82f6;padding:6px 12px;border-radius:6px;font-size:11px">Sr. Developer</div>
+          <div style="background:#e0e7ff;color:#3b82f6;padding:6px 12px;border-radius:6px;font-size:11px">Jr. Developer</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="background:#10b981;color:white;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500">QA Manager</div>
+        <div style="width:1px;height:12px;background:#cbd5e1"></div>
+        <div style="background:#d1fae5;color:#10b981;padding:6px 12px;border-radius:6px;font-size:11px">QA Engineers (2)</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="background:#f59e0b;color:white;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500">Admin Lead</div>
+        <div style="width:1px;height:12px;background:#cbd5e1"></div>
+        <div style="background:#fef3c7;color:#f59e0b;padding:6px 12px;border-radius:6px;font-size:11px">Business Analyst</div>
+      </div>
+    </div>
+  </div>
+</div>`,
+  },
+  workflow_diagram: {
+    label: 'Workflow Diagram',
+    icon: '🔄',
+    generate: () => `
+<div style="padding:20px;margin:16px 0;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0">
+  <h4 style="color:#1e3a5f;margin:0 0 16px;text-align:center">Project Delivery Workflow</h4>
+  <div style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap">
+    <div style="background:#1e3a5f;color:white;padding:10px 16px;border-radius:8px;text-align:center;font-size:12px;font-weight:500;min-width:100px">
+      <div>📋</div>Requirements<br/>Analysis
+    </div>
+    <div style="color:#cbd5e1;font-size:20px">→</div>
+    <div style="background:#3b82f6;color:white;padding:10px 16px;border-radius:8px;text-align:center;font-size:12px;font-weight:500;min-width:100px">
+      <div>🎨</div>Design &<br/>Planning
+    </div>
+    <div style="color:#cbd5e1;font-size:20px">→</div>
+    <div style="background:#8b5cf6;color:white;padding:10px 16px;border-radius:8px;text-align:center;font-size:12px;font-weight:500;min-width:100px">
+      <div>⚙️</div>Development &<br/>Implementation
+    </div>
+    <div style="color:#cbd5e1;font-size:20px">→</div>
+    <div style="background:#10b981;color:white;padding:10px 16px;border-radius:8px;text-align:center;font-size:12px;font-weight:500;min-width:100px">
+      <div>🧪</div>Testing &<br/>QA
+    </div>
+    <div style="color:#cbd5e1;font-size:20px">→</div>
+    <div style="background:#f59e0b;color:white;padding:10px 16px;border-radius:8px;text-align:center;font-size:12px;font-weight:500;min-width:100px">
+      <div>🚀</div>Deployment &<br/>Go-Live
+    </div>
+  </div>
+</div>`,
+  },
+  staffing_pyramid: {
+    label: 'Staffing Pyramid',
+    icon: '👥',
+    generate: () => `
+<div style="padding:20px;margin:16px 0;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;text-align:center">
+  <h4 style="color:#1e3a5f;margin:0 0 16px">Staffing Pyramid</h4>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+    <div style="background:#1e3a5f;color:white;padding:10px 20px;border-radius:6px;font-size:12px;font-weight:600;width:140px">Program Director<br/><span style="font-weight:400;font-size:11px">1 FTE</span></div>
+    <div style="background:#3b5998;color:white;padding:10px 20px;border-radius:6px;font-size:12px;font-weight:600;width:220px">Senior Management<br/><span style="font-weight:400;font-size:11px">2 FTEs - PM, Technical Lead</span></div>
+    <div style="background:#3b82f6;color:white;padding:10px 20px;border-radius:6px;font-size:12px;font-weight:600;width:320px">Mid-Level Staff<br/><span style="font-weight:400;font-size:11px">5 FTEs - Sr. Developers, QA Lead, BA</span></div>
+    <div style="background:#60a5fa;color:white;padding:10px 20px;border-radius:6px;font-size:12px;font-weight:600;width:420px">Junior Staff & Support<br/><span style="font-weight:400;font-size:11px">8 FTEs - Jr. Developers, QA Engineers, Admin Support</span></div>
+  </div>
+  <p style="font-size:11px;color:#64748b;margin:12px 0 0">Total: 16 FTEs | Surge capacity available</p>
+</div>`,
+  },
+  gantt_chart: {
+    label: 'Gantt Chart (Timeline)',
+    icon: '📅',
+    generate: () => {
+      const phases = [
+        { name: 'Phase 1: Planning', start: 0, duration: 3, color: '#1e3a5f' },
+        { name: 'Phase 2: Design', start: 2, duration: 4, color: '#3b82f6' },
+        { name: 'Phase 3: Development', start: 5, duration: 8, color: '#8b5cf6' },
+        { name: 'Phase 4: Testing', start: 10, duration: 4, color: '#10b981' },
+        { name: 'Phase 5: Deployment', start: 13, duration: 2, color: '#f59e0b' },
+        { name: 'Phase 6: Transition', start: 14, duration: 2, color: '#ef4444' },
+      ];
+      const totalMonths = 16;
+      const rows = phases.map(p => {
+        const leftPct = (p.start / totalMonths) * 100;
+        const widthPct = (p.duration / totalMonths) * 100;
+        return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+          <div style="width:160px;font-size:11px;color:#374151;text-align:right;flex-shrink:0">${p.name}</div>
+          <div style="flex:1;background:#f1f5f9;border-radius:4px;height:24px;position:relative">
+            <div style="position:absolute;left:${leftPct}%;width:${widthPct}%;background:${p.color};height:100%;border-radius:4px;display:flex;align-items:center;justify-content:center">
+              <span style="color:white;font-size:10px;font-weight:500">${p.duration}mo</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+      const months = Array.from({length: totalMonths + 1}, (_, i) => i).filter(i => i % 2 === 0);
+      const monthLabels = months.map(m => `<span style="position:absolute;left:${(m / totalMonths) * 100}%;font-size:9px;color:#94a3b8;transform:translateX(-50%)">M${m}</span>`).join('');
+      return `<div style="padding:20px;margin:16px 0;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0">
+        <h4 style="color:#1e3a5f;margin:0 0 16px;text-align:center">Project Timeline (Gantt Chart)</h4>
+        ${rows}
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="width:160px;flex-shrink:0"></div>
+          <div style="flex:1;position:relative;height:16px">${monthLabels}</div>
+        </div>
+      </div>`;
+    },
+  },
+};
+
 function generateChartPlaceholder(chartType) {
   const tpl = CHART_TEMPLATES[chartType];
   if (!tpl) return '';
@@ -828,6 +945,7 @@ export default function ProposalEditor() {
   const [sectionStyles, setSectionStyles] = useState({});
   const [showSectionStyle, setShowSectionStyle] = useState(null);
   const [showChartPicker, setShowChartPicker] = useState(null);
+  const [showGraphicsPicker, setShowGraphicsPicker] = useState(null);
 
   const toggleSectionInclude = (key) => {
     setSkippedSections((prev) => {
@@ -1736,6 +1854,38 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                                 className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-blue-50 transition-colors cursor-pointer"
                               >
                                 {cTpl.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Insert Graphics */}
+                    {key !== 'cost_price_proposal' && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowGraphicsPicker(showGraphicsPicker === key ? null : key)}
+                          className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-md transition-all cursor-pointer"
+                          title="Insert graphic"
+                        >
+                          <PhotoIcon className="w-3 h-3" />
+                          Graphics
+                        </button>
+                        {showGraphicsPicker === key && (
+                          <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 p-2">
+                            <p className="text-xs font-semibold text-navy px-2 py-1 mb-1">Insert Graphic</p>
+                            {Object.entries(GRAPHICS_TEMPLATES).map(([gKey, gTpl]) => (
+                              <button
+                                key={gKey}
+                                onClick={() => {
+                                  const html = gTpl.generate();
+                                  const current = sections[key] || '';
+                                  handleContentChange(key, current + html);
+                                  setShowGraphicsPicker(null);
+                                }}
+                                className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-green-50 transition-colors cursor-pointer"
+                              >
+                                {gTpl.icon} {gTpl.label}
                               </button>
                             ))}
                           </div>
