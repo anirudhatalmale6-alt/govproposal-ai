@@ -20,55 +20,85 @@ import {
   TableCellsIcon,
   TrophyIcon,
   ChevronDownIcon,
+  UserGroupIcon,
+  BuildingOffice2Icon,
+  AcademicCapIcon,
+  GlobeAltIcon,
+  SparklesIcon,
+  PencilSquareIcon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
-const navGroups = [
-  {
-    label: 'Overview',
-    items: [
-      { label: 'Dashboard', path: '/dashboard', icon: HomeIcon },
-      { label: 'Vendor Profile', path: '/vendor-profile', icon: UserCircleIcon },
-    ],
-  },
-  {
-    label: 'Research & Analysis',
-    items: [
-      { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
-      { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
-      { label: 'RFP Deconstructor', path: '/rfp-deconstructor', icon: DocumentMagnifyingGlassIcon },
-      { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
-      { label: 'Win Probability', path: '/win-probability', icon: TrophyIcon },
-    ],
-  },
-  {
-    label: 'Proposals',
-    items: [
-      { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
-      { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
-      { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
-    ],
-  },
-  {
-    label: 'Manage',
-    items: [
-      { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },
-      { label: 'Billing', path: '/billing', icon: CreditCardIcon },
-      { label: 'Audit Log', path: '/audit-log', icon: ClockIcon },
-    ],
-  },
+// Top-level navigation tabs (shown in header)
+const topNavTabs = [
+  { label: 'Dashboard', path: '/dashboard', icon: HomeIcon },
+  { label: 'Business Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
+  { label: 'Expertise', path: '/expertise', icon: AcademicCapIcon },
+  { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
+  { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
+  { label: 'Proposal', path: '/new-proposal', icon: DocumentTextIcon },
 ];
+
+// Context-based sidebar items — changes based on active top tab
+const sidebarContextMap = {
+  '/dashboard': [
+    { label: 'Overview', path: '/dashboard', icon: HomeIcon },
+    { label: 'Audit Log', path: '/audit-log', icon: ClockIcon },
+    { label: 'Billing', path: '/billing', icon: CreditCardIcon },
+  ],
+  '/vendor-profile': [
+    { label: 'Organization Details', path: '/vendor-profile', icon: BuildingOffice2Icon },
+    { label: 'Business Classification', path: '/vendor-profile?section=classification', icon: BriefcaseIcon },
+    { label: 'Certifications', path: '/vendor-profile?section=certifications', icon: ShieldCheckIcon },
+    { label: 'Contract Vehicles', path: '/vendor-profile?section=contracts', icon: DocumentTextIcon },
+    { label: 'Government Registrations', path: '/vendor-profile?section=registrations', icon: GlobeAltIcon },
+    { label: 'Contact Details', path: '/vendor-profile?section=contact', icon: UserCircleIcon },
+    { label: 'About Organization', path: '/vendor-profile?section=about', icon: SparklesIcon },
+    { label: 'Past Performance', path: '/vendor-profile?section=performance', icon: TrophyIcon },
+    { label: 'Capability Statement', path: '/vendor-profile?section=capability', icon: PencilSquareIcon },
+    { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
+  ],
+  '/expertise': [
+    { label: 'Management Team', path: '/expertise', icon: UserGroupIcon },
+    { label: 'Executive Team', path: '/expertise?section=executive', icon: UserCircleIcon },
+    { label: 'Project Managers', path: '/expertise?section=pm', icon: BriefcaseIcon },
+    { label: 'Specialists', path: '/expertise?section=specialists', icon: AcademicCapIcon },
+    { label: 'Org Hierarchy', path: '/expertise?section=hierarchy', icon: ChartBarIcon },
+  ],
+  '/opportunities': [
+    { label: 'Opportunity Search', path: '/opportunities', icon: MagnifyingGlassIcon },
+    { label: 'RFP Deconstructor', path: '/rfp-deconstructor', icon: DocumentMagnifyingGlassIcon },
+    { label: 'Saved Opportunities', path: '/opportunities?section=saved', icon: FolderOpenIcon },
+  ],
+  '/market-research': [
+    { label: 'Competitor Analysis', path: '/market-research', icon: ChartBarIcon },
+    { label: 'Labor Rate Intelligence', path: '/market-research?section=labor', icon: CreditCardIcon },
+    { label: 'Pricing Strategy', path: '/market-research?section=pricing', icon: TrophyIcon },
+    { label: 'SCA Pricing', path: '/market-research?section=sca', icon: DocumentTextIcon },
+  ],
+  '/new-proposal': [
+    { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
+    { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
+    { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
+    { label: 'Proposal Editor', path: '/proposal-editor', icon: PencilSquareIcon },
+    { label: 'Win Probability', path: '/win-probability', icon: TrophyIcon },
+    { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },
+  ],
+};
 
 const tierColors = {
   free: 'bg-gray-100 text-gray-600',
   paid: 'bg-accent/10 text-accent',
   pro: 'bg-blue/10 text-blue',
+  enterprise: 'bg-blue/10 text-blue',
 };
 
 export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
 
   const tierLabel = user?.subscription_tier
@@ -76,20 +106,30 @@ export default function Layout() {
     : 'Free';
   const tierColor = tierColors[user?.subscription_tier?.toLowerCase()] || tierColors.free;
 
-  const toggleGroup = (label) => {
-    setCollapsedGroups(prev => ({ ...prev, [label]: !prev[label] }));
-  };
+  // Determine which top tab is active based on current path
+  const currentPath = location.pathname;
+  const activeTopTab = topNavTabs.find(tab => {
+    if (tab.path === '/dashboard') return currentPath === '/dashboard' || currentPath === '/audit-log' || currentPath === '/billing' || currentPath === '/admin';
+    if (tab.path === '/vendor-profile') return currentPath === '/vendor-profile' || currentPath === '/compliance-matrix';
+    if (tab.path === '/opportunities') return currentPath === '/opportunities' || currentPath === '/rfp-deconstructor';
+    if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts';
+    return currentPath === tab.path || currentPath.startsWith(tab.path);
+  })?.path || '/dashboard';
 
-  // Flatten for admin
-  const allGroups = user?.is_admin
-    ? [...navGroups, { label: 'Admin', items: [{ label: 'Admin Panel', path: '/admin', icon: ShieldCheckIcon }] }]
-    : navGroups;
+  // Get sidebar items for current context
+  let sidebarItems = sidebarContextMap[activeTopTab] || sidebarContextMap['/dashboard'];
+
+  // Add admin panel if user is admin
+  if (user?.is_admin && activeTopTab === '/dashboard') {
+    sidebarItems = [...sidebarItems, { label: 'Admin Panel', path: '/admin', icon: ShieldCheckIcon }];
+  }
 
   return (
     <div className="min-h-screen bg-[#f8f9fc]">
       {/* Header */}
-      <header className="bg-navy text-white fixed top-0 left-0 right-0 z-50 h-14">
-        <div className="flex items-center justify-between h-full px-4 lg:px-5">
+      <header className="bg-navy text-white fixed top-0 left-0 right-0 z-50">
+        {/* Top bar — logo + user */}
+        <div className="flex items-center justify-between h-12 px-4 lg:px-5 border-b border-white/10">
           <div className="flex items-center gap-3">
             <button
               className="lg:hidden p-1.5 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
@@ -98,10 +138,10 @@ export default function Layout() {
               {sidebarOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
             </button>
             <Link to="/dashboard" className="flex items-center gap-2 no-underline text-white">
-              <div className="bg-accent rounded-lg p-1.5">
-                <DocumentTextIcon className="w-5 h-5 text-white" />
+              <div className="bg-accent rounded-lg p-1">
+                <DocumentTextIcon className="w-4 h-4 text-white" />
               </div>
-              <span className="text-lg font-bold tracking-tight">
+              <span className="text-base font-bold tracking-tight">
                 GovProposal <span className="text-accent">AI</span>
               </span>
             </Link>
@@ -113,26 +153,75 @@ export default function Layout() {
                 <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${tierColor}`}>
                   {tierLabel}
                 </span>
-                <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5">
-                  <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center">
-                    <span className="text-xs font-bold text-accent">
-                      {(user.first_name || user.full_name || user.email || '?')[0].toUpperCase()}
+                <div className="relative">
+                  <button
+                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                    className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-accent">
+                        {(user.first_name || user.full_name || user.email || '?')[0].toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="hidden sm:block text-xs text-white/90 max-w-[120px] truncate">
+                      {user.first_name || user.full_name || user.email}
                     </span>
-                  </div>
-                  <span className="text-sm text-white/90 max-w-[120px] truncate">
-                    {user.first_name || user.full_name || user.email}
-                  </span>
+                    <ChevronDownIcon className={`hidden sm:block w-3 h-3 text-white/50 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {profileMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                        <div className="px-4 py-2.5 border-b border-gray-100">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{user.first_name || user.full_name || 'User'}</p>
+                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                        </div>
+                        <div className="py-1">
+                          <Link to="/vendor-profile" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 no-underline transition-colors">
+                            <UserCircleIcon className="w-4 h-4 text-gray-400" />
+                            My Profile
+                          </Link>
+                          <Link to="/billing" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 no-underline transition-colors">
+                            <CreditCardIcon className="w-4 h-4 text-gray-400" />
+                            Billing
+                          </Link>
+                        </div>
+                        <div className="border-t border-gray-100 pt-1">
+                          <button onClick={() => { setProfileMenuOpen(false); logout(); }} className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer">
+                            <ArrowRightStartOnRectangleIcon className="w-4 h-4 text-red-400" />
+                            Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <button
-                  onClick={logout}
-                  className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-                  title="Logout"
-                >
-                  <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
-                </button>
               </>
             )}
           </div>
+        </div>
+
+        {/* Navigation tabs bar */}
+        <div className="hidden lg:flex items-center gap-1 h-10 px-4 overflow-x-auto">
+          {topNavTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTopTab === tab.path;
+            return (
+              <Link
+                key={tab.path}
+                to={tab.path}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium no-underline whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/60 hover:text-white/90 hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </Link>
+            );
+          })}
         </div>
       </header>
 
@@ -141,78 +230,73 @@ export default function Layout() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <div className="flex pt-14">
-        {/* Sidebar */}
+      {/* Top offset: 48px top bar + 40px nav tabs = 88px (h-[5.5rem]) */}
+      <div className="flex pt-[5.5rem]">
+        {/* Context-based sidebar */}
         <aside
-          className={`fixed lg:sticky top-14 left-0 h-[calc(100vh-3.5rem)] w-56 bg-white border-r border-gray-100 z-40 transition-transform duration-300 overflow-y-auto ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          }`}
+          className={`fixed lg:sticky top-[5.5rem] left-0 h-[calc(100vh-5.5rem)] bg-white border-r border-gray-100 z-40 transition-all duration-300 overflow-y-auto ${
+            sidebarCollapsed ? 'w-14' : 'w-52'
+          } ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         >
-          <div className="py-3 px-3 flex flex-col h-full">
-            <div className="flex-1 space-y-4">
-              {allGroups.map((group) => {
-                const isCollapsed = collapsedGroups[group.label];
-                const hasActiveItem = group.items.some(item => location.pathname === item.path);
+          <div className="py-3 px-2 flex flex-col h-full">
+            {/* Collapse toggle */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex items-center justify-center w-full mb-2 p-1.5 rounded-md text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors cursor-pointer"
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <Bars3Icon className="w-4 h-4" />
+            </button>
+
+            {/* Context nav items */}
+            <div className="flex-1 space-y-0.5">
+              {sidebarItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentPath === item.path || (item.path.includes('?') && currentPath === item.path.split('?')[0]);
+                // For items without query params, exact match; for base paths, match exactly
+                const exactActive = item.path === currentPath;
                 return (
-                  <div key={group.label}>
-                    <button
-                      onClick={() => toggleGroup(group.label)}
-                      className="flex items-center justify-between w-full px-2 mb-1 cursor-pointer group"
-                    >
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${hasActiveItem ? 'text-accent' : 'text-gray-400'} group-hover:text-gray-600 transition-colors`}>
-                        {group.label}
-                      </span>
-                      <ChevronDownIcon className={`w-3 h-3 text-gray-300 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-                    </button>
-                    {!isCollapsed && (
-                      <div className="space-y-0.5">
-                        {group.items.map((item) => {
-                          const Icon = item.icon;
-                          const isActive = location.pathname === item.path;
-                          return (
-                            <Link
-                              key={item.path}
-                              to={item.path}
-                              onClick={() => setSidebarOpen(false)}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all no-underline ${
-                                isActive
-                                  ? 'bg-navy text-white shadow-sm'
-                                  : 'text-gray-500 hover:bg-gray-50 hover:text-navy'
-                              }`}
-                            >
-                              <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400'}`} />
-                              {item.label}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setSidebarOpen(false)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all no-underline ${
+                      exactActive
+                        ? 'bg-navy text-white shadow-sm'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-navy'
+                    } ${sidebarCollapsed ? 'justify-center' : ''}`}
+                  >
+                    <Icon className={`w-4 h-4 flex-shrink-0 ${exactActive ? 'text-white' : 'text-gray-400'}`} />
+                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  </Link>
                 );
               })}
             </div>
 
             {/* Sidebar footer */}
-            <div className="pt-3 border-t border-gray-100 mt-3">
-              {user && (
-                <div className="flex items-center gap-2 px-2 py-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-blue flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-white">
-                      {(user.first_name || user.full_name || user.email || '?')[0].toUpperCase()}
-                    </span>
+            {!sidebarCollapsed && (
+              <div className="pt-3 border-t border-gray-100 mt-3">
+                {user && (
+                  <div className="flex items-center gap-2 px-2 py-2">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent to-blue flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-bold text-white">
+                        {(user.first_name || user.full_name || user.email || '?')[0].toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-navy truncate">{user.first_name || user.full_name || 'User'}</p>
+                      <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-navy truncate">{user.first_name || user.full_name || 'User'}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-[calc(100vh-3.5rem)] p-5 lg:p-7">
+        <main className={`flex-1 min-h-[calc(100vh-5.5rem)] p-5 lg:p-6 transition-all`}>
           <Outlet />
         </main>
       </div>

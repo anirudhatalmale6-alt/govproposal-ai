@@ -23,6 +23,9 @@ import ComplianceMatrix from './pages/ComplianceMatrix';
 import WinProbability from './pages/WinProbability';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Expertise from './pages/Expertise';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -146,6 +149,8 @@ function AppRoutes() {
       {/* Public routes — no auth required */}
       <Route path="/shared/:token" element={<SharedProposal />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
@@ -168,6 +173,7 @@ function AppRoutes() {
         <Route path="/contracts" element={<ContractManager />} />
         <Route path="/compliance-matrix" element={<ComplianceMatrix />} />
         <Route path="/win-probability" element={<WinProbability />} />
+        <Route path="/expertise" element={<Expertise />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />
