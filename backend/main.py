@@ -1901,7 +1901,8 @@ FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 if FRONTEND_DIST.exists():
     from fastapi.responses import FileResponse
 
-    # Mount static assets
+    # Mount static assets (both paths for base-path and direct access)
+    app.mount("/govproposal-ai/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets_base")
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
 
     # Catch-all route for SPA - must be after all API routes
@@ -1911,8 +1912,12 @@ if FRONTEND_DIST.exists():
         # Don't intercept API routes
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not found")
+        # Strip base path prefix for file lookup
+        clean_path = full_path
+        if clean_path.startswith("govproposal-ai/"):
+            clean_path = clean_path[len("govproposal-ai/"):]
         # Try to serve the specific file first
-        file_path = FRONTEND_DIST / full_path
+        file_path = FRONTEND_DIST / clean_path
         if file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
         # Otherwise serve index.html for SPA routing
