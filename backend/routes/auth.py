@@ -102,6 +102,15 @@ class ResendVerificationRequest(BaseModel):
     email: str = Field(..., description="Email to resend verification to")
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., description="Email address for password reset")
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., description="Password reset token")
+    new_password: str = Field(..., min_length=10, description="New password")
+
+
 # ──────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────
@@ -292,6 +301,25 @@ async def login(
             detail="Please verify your email before logging in. Check your inbox for the verification link.",
         )
 
+    # Check 45-day password expiry
+    PASSWORD_MAX_AGE_DAYS = 45
+    password_set_date = user.password_changed_at or user.created_at
+    if password_set_date:
+        if password_set_date.tzinfo is None:
+            password_set_date = password_set_date.replace(tzinfo=timezone.utc)
+        days_since = (datetime.now(timezone.utc) - password_set_date).days
+        if days_since >= PASSWORD_MAX_AGE_DAYS:
+            # Generate a reset token so user can reset via the reset page
+            reset_tok = secrets.token_urlsafe(32)
+            user.reset_token = reset_tok
+            user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+            db.add(user)
+            await db.flush()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"PASSWORD_EXPIRED|{reset_tok}",
+            )
+
     token = create_access_token(data={"sub": user.id, "email": user.email})
 
     logger.info("User logged in: %s", user.email)
@@ -357,3 +385,100 @@ async def update_profile(
     logger.info("User profile updated: %s", current_user.email)
 
     return UserResponse(user=current_user.to_dict())
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Request a password reset. Generates a reset token.
+    Since we don't have SMTP configured, returns the token directly
+    so the frontend can redirect to the reset page.
+    """
+    result = await db.execute(
+        select(User).where(User.email == request.email.lower().strip())
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # Don't reveal whether email exists — but return a fake token format
+        return {"message": "If an account with this email exists, a password reset link has been sent.", "reset_token": None}
+
+    # Generate reset token
+    reset_tok = secrets.token_urlsafe(32)
+    user.reset_token = reset_tok
+    user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.add(user)
+    await db.flush()
+
+    smtp_configured = bool(SMTP_HOST and SMTP_USER)
+
+    if smtp_configured:
+        # TODO: send reset email
+        logger.info("Password reset requested for %s (email would be sent)", user.email)
+        return {"message": "If an account with this email exists, a password reset link has been sent.", "reset_token": None}
+    else:
+        # No SMTP — return token directly so frontend can use it
+        logger.info("Password reset token generated for %s (no SMTP, returning token)", user.email)
+        return {"message": "Password reset token generated.", "reset_token": reset_tok}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reset password using a valid reset token.
+    """
+    result = await db.execute(
+        select(User).where(User.reset_token == request.token)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token.",
+        )
+
+    # Check expiry
+    if user.reset_token_expires:
+        expires = user.reset_token_expires
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reset token has expired. Please request a new one.",
+            )
+
+    # Validate new password strength
+    pwd_error = validate_password(request.new_password)
+    if pwd_error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=pwd_error,
+        )
+
+    # Update password
+    user.hashed_password = hash_password(request.new_password)
+    user.password_changed_at = datetime.now(timezone.utc)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.add(user)
+    await db.flush()
+
+    logger.info("Password reset completed for %s", user.email)
+
+    # Generate login token
+    token = create_access_token(data={"sub": user.id, "email": user.email})
+
+    return {
+        "message": "Password has been reset successfully.",
+        "token": token,
+        "token_type": "bearer",
+        "user": user.to_dict(),
+    }

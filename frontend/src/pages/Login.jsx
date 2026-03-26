@@ -41,7 +41,12 @@ export default function Login() {
       navigate('/dashboard', { replace: true });
     } catch (err) {
       const detail = err.response?.data?.detail || err.response?.data?.message || '';
-      if (err.response?.status === 403 && detail.toLowerCase().includes('verify')) {
+      if (err.response?.status === 403 && detail.startsWith('PASSWORD_EXPIRED|')) {
+        // Password expired — redirect to reset page with token
+        const resetToken = detail.split('|')[1];
+        navigate(`/reset-password?token=${resetToken}&expired=1`);
+        return;
+      } else if (err.response?.status === 403 && detail.toLowerCase().includes('verify')) {
         setNeedsVerification(true);
         setError(detail);
       } else {
@@ -148,6 +153,15 @@ export default function Login() {
                   )}
                 </button>
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-blue hover:text-blue-light no-underline font-medium"
+              >
+                Forgot Password?
+              </Link>
             </div>
 
             <button

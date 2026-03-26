@@ -77,117 +77,107 @@ export default function Dashboard() {
   const userName = user?.first_name || (user?.full_name ? user.full_name.split(' ')[0] : '');
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-navy to-navy-light rounded-2xl p-6 text-white relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-64 h-full opacity-10">
-          <svg viewBox="0 0 200 200" className="w-full h-full">
-            <circle cx="150" cy="50" r="80" fill="white" />
-            <circle cx="180" cy="120" r="60" fill="white" />
-          </svg>
+    <div className="max-w-7xl mx-auto">
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-navy">
+          Welcome Back{userName ? `, ${userName}` : ''}
+        </h1>
+        <p className="text-gray-500 mt-1">
+          Manage your government proposals and track opportunities
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Total Proposals</p>
+              <p className="text-3xl font-bold text-navy mt-2">
+                {loading ? <span className="inline-block w-8 h-8 bg-gray-100 rounded animate-pulse" /> : totalProposals}
+              </p>
+              <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                <ArrowTrendingUpIcon className="w-3.5 h-3.5" />
+                {completedProposals} completed
+              </p>
+            </div>
+            <div className="bg-blue rounded-lg p-3">
+              <DocumentTextIcon className="w-6 h-6 text-white" />
+            </div>
+          </div>
         </div>
-        <div className="relative">
-          <p className="text-white/60 text-sm font-medium">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
-          <h1 className="text-2xl font-bold mt-1">
-            {userName ? `Welcome back, ${userName}` : 'Welcome back'}
-          </h1>
-          <p className="text-white/70 text-sm mt-1">
-            {totalProposals === 0
-              ? 'Ready to create your first proposal?'
-              : `You have ${pendingProposals} proposal${pendingProposals !== 1 ? 's' : ''} in progress`}
-          </p>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">In Progress</p>
+              <p className="text-3xl font-bold text-navy mt-2">
+                {loading ? <span className="inline-block w-8 h-8 bg-gray-100 rounded animate-pulse" /> : pendingProposals}
+              </p>
+              <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                <ArrowTrendingUpIcon className="w-3.5 h-3.5" />
+                {pendingProposals > 0 ? 'Needs attention' : 'All clear'}
+              </p>
+            </div>
+            <div className="bg-amber-500 rounded-lg p-3">
+              <ClockIcon className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Completed</p>
+              <p className="text-3xl font-bold text-navy mt-2">
+                {loading ? <span className="inline-block w-8 h-8 bg-gray-100 rounded animate-pulse" /> : completedProposals}
+              </p>
+              <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                <ArrowTrendingUpIcon className="w-3.5 h-3.5" />
+                {totalProposals > 0
+                  ? `${Math.round((completedProposals / totalProposals) * 100)}% completion rate`
+                  : 'Get started!'}
+              </p>
+            </div>
+            <div className="bg-accent rounded-lg p-3">
+              <CheckCircleIcon className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions — colorful cards */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-navy mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             to="/new-proposal"
-            className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-white/15 hover:bg-white/25 rounded-lg text-sm font-medium text-white no-underline transition-colors"
+            className="bg-accent hover:bg-accent-dark text-white rounded-xl p-5 transition-all no-underline shadow-sm hover:shadow-lg hover:-translate-y-0.5"
           >
-            <PlusIcon className="w-4 h-4" />
-            New Proposal
+            <PlusIcon className="w-8 h-8 mb-3" />
+            <h3 className="font-semibold text-lg">New Proposal</h3>
+            <p className="text-white/80 text-sm mt-1">Generate an AI-powered proposal</p>
+          </Link>
+
+          <Link
+            to="/opportunities"
+            className="bg-blue hover:bg-blue-light text-white rounded-xl p-5 transition-all no-underline shadow-sm hover:shadow-lg hover:-translate-y-0.5"
+          >
+            <MagnifyingGlassIcon className="w-8 h-8 mb-3" />
+            <h3 className="font-semibold text-lg">Search Opportunities</h3>
+            <p className="text-white/80 text-sm mt-1">Find government contract opportunities</p>
+          </Link>
+
+          <Link
+            to="/vendor-profile"
+            className="bg-navy hover:bg-navy-light text-white rounded-xl p-5 transition-all no-underline shadow-sm hover:shadow-lg hover:-translate-y-0.5"
+          >
+            <UserCircleIcon className="w-8 h-8 mb-3" />
+            <h3 className="font-semibold text-lg">Manage Profile</h3>
+            <p className="text-white/80 text-sm mt-1">Update your vendor information</p>
           </Link>
         </div>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-blue/10 flex items-center justify-center">
-              <DocumentTextIcon className="w-5 h-5 text-blue" />
-            </div>
-            <span className="text-xs text-gray-400 font-medium">Total</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {loading ? <span className="inline-block w-6 h-6 bg-gray-100 rounded animate-pulse" /> : totalProposals}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Proposals created</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
-              <ClockIcon className="w-5 h-5 text-amber-500" />
-            </div>
-            <span className="text-xs text-gray-400 font-medium">Active</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {loading ? <span className="inline-block w-6 h-6 bg-gray-100 rounded animate-pulse" /> : pendingProposals}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">In progress</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
-            </div>
-            <span className="text-xs text-gray-400 font-medium">Done</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {loading ? <span className="inline-block w-6 h-6 bg-gray-100 rounded animate-pulse" /> : completedProposals}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {totalProposals > 0
-              ? `${Math.round((completedProposals / totalProposals) * 100)}% completion`
-              : 'Get started'}
-          </p>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Link
-          to="/new-proposal"
-          className="group bg-white rounded-xl border border-gray-100 p-5 no-underline hover:border-accent/30 hover:shadow-sm transition-all"
-        >
-          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-3 group-hover:bg-accent/15 transition-colors">
-            <SparklesIcon className="w-5 h-5 text-accent" />
-          </div>
-          <h3 className="text-sm font-semibold text-gray-900">Generate Proposal</h3>
-          <p className="text-xs text-gray-400 mt-1">AI-powered proposal creation</p>
-        </Link>
-
-        <Link
-          to="/opportunities"
-          className="group bg-white rounded-xl border border-gray-100 p-5 no-underline hover:border-blue/30 hover:shadow-sm transition-all"
-        >
-          <div className="w-10 h-10 rounded-lg bg-blue/10 flex items-center justify-center mb-3 group-hover:bg-blue/15 transition-colors">
-            <MagnifyingGlassIcon className="w-5 h-5 text-blue" />
-          </div>
-          <h3 className="text-sm font-semibold text-gray-900">Find Opportunities</h3>
-          <p className="text-xs text-gray-400 mt-1">Search government contracts</p>
-        </Link>
-
-        <Link
-          to="/vendor-profile"
-          className="group bg-white rounded-xl border border-gray-100 p-5 no-underline hover:border-navy/30 hover:shadow-sm transition-all"
-        >
-          <div className="w-10 h-10 rounded-lg bg-navy/10 flex items-center justify-center mb-3 group-hover:bg-navy/15 transition-colors">
-            <UserCircleIcon className="w-5 h-5 text-navy" />
-          </div>
-          <h3 className="text-sm font-semibold text-gray-900">Vendor Profile</h3>
-          <p className="text-xs text-gray-400 mt-1">Update your company info</p>
-        </Link>
       </div>
 
       {/* Recent Proposals */}

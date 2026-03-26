@@ -71,6 +71,7 @@ export default function ProposalGenerator() {
 
   // Step 1 — Vendor profile
   const [useExisting, setUseExisting] = useState(true);
+  const [vendorLoading, setVendorLoading] = useState(false);
   const [vendor, setVendor] = useState({
     company_name: '',
     cage_code: '',
@@ -83,6 +84,22 @@ export default function ProposalGenerator() {
     contact_email: '',
     contact_phone: '',
     contact_address: '',
+    // Extended fields from Vendor Profile page
+    ein_tin: '',
+    about_company: '',
+    capability_statement: '',
+    organizational_type: '',
+    years_in_business: '',
+    number_of_employees: '',
+    annual_revenue: '',
+    security_clearance_level: '',
+    business_classifications: [],
+    certifications: [],
+    contract_vehicles: [],
+    management_team: [],
+    executive_team: [],
+    past_performances: [],
+    capability_examples: [],
   });
 
   // Step 2 — Opportunity
@@ -107,26 +124,83 @@ export default function ProposalGenerator() {
     proposalSections.map((s) => s.key)
   );
 
-  // Load saved vendor profile
+  // Load saved vendor profile — try backend API first, fallback to localStorage
   useEffect(() => {
-    if (useExisting) {
+    if (!useExisting) return;
+
+    const loadProfile = async () => {
+      setVendorLoading(true);
+      try {
+        // Try fetching from backend API first
+        const res = await api.get('/api/vendor-profiles');
+        if (res.data?.profiles?.length > 0) {
+          const p = res.data.profiles[0]; // most recent profile
+          const mapped = {
+            company_name: p.company_name || '',
+            cage_code: p.cage_code || '',
+            duns_number: p.duns_number || '',
+            naics_codes: Array.isArray(p.naics_codes) ? p.naics_codes : [],
+            capabilities: p.capabilities || '',
+            past_performance: p.past_performance || '',
+            socioeconomic_status: p.socioeconomic_status || 'Small Business',
+            contact_name: p.contact_info?.name || '',
+            contact_email: p.contact_info?.email || '',
+            contact_phone: p.contact_info?.phone || '',
+            contact_address: p.contact_info?.address || '',
+          };
+          setVendor((prev) => ({ ...prev, ...mapped }));
+          setVendorLoading(false);
+
+          // Also try loading extended fields from localStorage (richer data)
+          const saved = localStorage.getItem('vendorProfile');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              if (typeof parsed.naics_codes === 'string') {
+                parsed.naics_codes = parsed.naics_codes.split(',').map((c) => c.trim()).filter(Boolean);
+              }
+              // Merge extended fields that backend doesn't store
+              setVendor((prev) => ({
+                ...prev,
+                ein_tin: parsed.ein_tin || prev.ein_tin,
+                about_company: parsed.about_company || prev.about_company,
+                capability_statement: parsed.capability_statement || prev.capability_statement,
+                organizational_type: parsed.organizational_type || prev.organizational_type,
+                years_in_business: parsed.years_in_business || prev.years_in_business,
+                number_of_employees: parsed.number_of_employees || prev.number_of_employees,
+                annual_revenue: parsed.annual_revenue || prev.annual_revenue,
+                security_clearance_level: parsed.security_clearance_level || prev.security_clearance_level,
+                business_classifications: parsed.business_classifications || prev.business_classifications,
+                certifications: parsed.certifications || prev.certifications,
+                contract_vehicles: parsed.contract_vehicles || prev.contract_vehicles,
+                management_team: parsed.management_team || prev.management_team,
+                executive_team: parsed.executive_team || prev.executive_team,
+                past_performances: parsed.past_performances || prev.past_performances,
+                capability_examples: parsed.capability_examples || prev.capability_examples,
+              }));
+            } catch { /* ignore */ }
+          }
+          return;
+        }
+      } catch {
+        // API not available, fall through to localStorage
+      }
+
+      // Fallback: load from localStorage
       const saved = localStorage.getItem('vendorProfile');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          // Migrate old comma-separated string to array
           if (typeof parsed.naics_codes === 'string') {
-            parsed.naics_codes = parsed.naics_codes
-              .split(',')
-              .map((c) => c.trim())
-              .filter(Boolean);
+            parsed.naics_codes = parsed.naics_codes.split(',').map((c) => c.trim()).filter(Boolean);
           }
           setVendor((prev) => ({ ...prev, ...parsed }));
-        } catch {
-          // ignore
-        }
+        } catch { /* ignore */ }
       }
-    }
+      setVendorLoading(false);
+    };
+
+    loadProfile();
   }, [useExisting]);
 
   // Auto-fill opportunity from navigation state (from opportunity search)
@@ -412,10 +486,21 @@ export default function ProposalGenerator() {
             </button>
           </div>
 
-          {useExisting && vendor.company_name ? (
+          {useExisting && vendorLoading ? (
+            <div className="bg-gray-50 rounded-lg p-8 border border-gray-200 text-center">
+              <svg className="animate-spin w-8 h-8 text-navy mx-auto mb-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p className="text-sm text-gray-500">Loading your vendor profile...</p>
+            </div>
+          ) : useExisting && vendor.company_name ? (
             <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-              <h3 className="font-semibold text-navy text-base">{vendor.company_name}</h3>
-              <div className="grid grid-cols-2 gap-3 mt-3 text-sm text-gray-600">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-navy text-base">{vendor.company_name}</h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Profile Loaded</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
                 {vendor.cage_code && (
                   <p>
                     <span className="font-medium text-gray-700">CAGE:</span>{' '}
@@ -440,17 +525,75 @@ export default function ProposalGenerator() {
                   <span className="font-medium text-gray-700">Status:</span>{' '}
                   {vendor.socioeconomic_status}
                 </p>
+                {vendor.organizational_type && (
+                  <p>
+                    <span className="font-medium text-gray-700">Type:</span>{' '}
+                    {vendor.organizational_type}
+                  </p>
+                )}
+                {vendor.years_in_business && (
+                  <p>
+                    <span className="font-medium text-gray-700">Experience:</span>{' '}
+                    {vendor.years_in_business} years
+                  </p>
+                )}
+                {vendor.security_clearance_level && vendor.security_clearance_level !== 'None' && (
+                  <p>
+                    <span className="font-medium text-gray-700">Clearance:</span>{' '}
+                    {vendor.security_clearance_level}
+                  </p>
+                )}
+                {vendor.certifications?.length > 0 && (
+                  <p className="col-span-2">
+                    <span className="font-medium text-gray-700">Certifications:</span>{' '}
+                    {vendor.certifications.join(', ')}
+                  </p>
+                )}
+                {vendor.contract_vehicles?.length > 0 && (
+                  <p className="col-span-2">
+                    <span className="font-medium text-gray-700">Contract Vehicles:</span>{' '}
+                    {vendor.contract_vehicles.join(', ')}
+                  </p>
+                )}
               </div>
               {vendor.capabilities && (
                 <p className="text-sm text-gray-500 mt-3 line-clamp-2">
                   {vendor.capabilities}
                 </p>
               )}
+              {/* Data completeness indicator */}
+              {(() => {
+                const filled = [
+                  vendor.company_name, vendor.cage_code, vendor.duns_number,
+                  vendor.naics_codes?.length > 0, vendor.capabilities, vendor.past_performance,
+                  vendor.about_company, vendor.capability_statement,
+                  vendor.certifications?.length > 0, vendor.contract_vehicles?.length > 0,
+                  vendor.past_performances?.length > 0, vendor.management_team?.length > 0,
+                ].filter(Boolean).length;
+                const total = 12;
+                const pct = Math.round((filled / total) * 100);
+                return (
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-gray-500 font-medium">Profile completeness</span>
+                      <span className={`font-semibold ${pct >= 75 ? 'text-green-600' : pct >= 50 ? 'text-amber-600' : 'text-red-500'}`}>{pct}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${pct >= 75 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-400'}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    {pct < 75 && (
+                      <p className="text-[11px] text-gray-400 mt-1.5">
+                        Complete your <a href="/vendor-profile" className="text-blue hover:underline">Business Profile</a> for better proposal quality
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ) : useExisting && !vendor.company_name ? (
             <div className="bg-amber-50 rounded-lg p-5 border border-amber-200 text-center">
               <p className="text-sm text-amber-700 mb-2">
-                No saved profile found. Please create one in the Vendor Profile page or
+                No saved profile found. Please create one in the Business Profile page or
                 enter details manually.
               </p>
               <button
@@ -801,6 +944,21 @@ export default function ProposalGenerator() {
                 <span className="font-medium">Sections:</span> {selectedSections.length} of{' '}
                 {proposalSections.length}
               </p>
+            </div>
+            {/* Data sources indicator */}
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-400 font-medium mb-1.5">Auto-fill data sources:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {vendor.company_name && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Company Info</span>}
+                {vendor.certifications?.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Certifications</span>}
+                {vendor.contract_vehicles?.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Contract Vehicles</span>}
+                {vendor.past_performances?.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Past Performance</span>}
+                {vendor.management_team?.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Key Personnel</span>}
+                {vendor.capability_statement && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Capability Statement</span>}
+                {!vendor.certifications?.length && !vendor.past_performances?.length && !vendor.management_team?.length && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Complete your profile for richer proposals</span>
+                )}
+              </div>
             </div>
           </div>
 

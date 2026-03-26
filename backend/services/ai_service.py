@@ -966,6 +966,57 @@ class AIService:
                 cvs = ", ".join(cvs)
             lines.append(f"Contract Vehicles: {cvs}")
 
+        # About company / capability statement
+        if vendor.get("about_company"):
+            lines.append(f"About the Company: {vendor['about_company']}")
+        if vendor.get("capability_statement"):
+            lines.append(f"Capability Statement: {vendor['capability_statement']}")
+
+        # Business classifications
+        if vendor.get("business_classifications"):
+            bc = vendor["business_classifications"]
+            if isinstance(bc, list):
+                bc = ", ".join(bc)
+            lines.append(f"Business Classifications: {bc}")
+
+        # Past performance records (structured)
+        pp_records = vendor.get("past_performances", [])
+        if pp_records and isinstance(pp_records, list):
+            lines.append("\nPast Performance Records:")
+            for i, pp in enumerate(pp_records, 1):
+                if isinstance(pp, dict):
+                    client = pp.get("client_name", "N/A")
+                    title = pp.get("contract_title", "N/A")
+                    desc = pp.get("description", "")
+                    lines.append(f"  {i}. Client: {client} | Contract: {title}")
+                    if desc:
+                        lines.append(f"     Description: {desc}")
+
+        # Management team / key personnel
+        for team_key, team_label in [
+            ("management_team", "Management Team"),
+            ("executive_team", "Executive Team"),
+        ]:
+            team = vendor.get(team_key, [])
+            if team and isinstance(team, list):
+                lines.append(f"\n{team_label}:")
+                for i, member in enumerate(team, 1):
+                    if isinstance(member, dict):
+                        name = member.get("name", "N/A")
+                        role = member.get("designation") or member.get("title", "N/A")
+                        about = member.get("about") or member.get("bio", "")
+                        lines.append(f"  {i}. {name} — {role}")
+                        if about:
+                            lines.append(f"     {about[:200]}")
+
+        # Capability examples
+        cap_examples = vendor.get("capability_examples", [])
+        if cap_examples and isinstance(cap_examples, list):
+            lines.append("\nCapability Examples:")
+            for i, ex in enumerate(cap_examples, 1):
+                if isinstance(ex, dict):
+                    lines.append(f"  {i}. {ex.get('title', 'N/A')}: {ex.get('description', '')}")
+
         # Support both flat and nested contact info
         contact = vendor.get("contact_info", {})
         if contact:
