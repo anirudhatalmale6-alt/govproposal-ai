@@ -565,12 +565,19 @@ function PreviewSectionContent({ content }) {
   );
 }
 
-function PricingTable({ onContentUpdate }) {
+function PricingTable({ onContentUpdate, contractType = '' }) {
   const [lineItems, setLineItems] = useState([defaultLineItem()]);
   const [odcs, setOdcs] = useState([{ id: Date.now(), description: '', amount: 0 }]);
   const [notes, setNotes] = useState('');
   const [importCount, setImportCount] = useState(0);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  // FFP year periods
+  const [yearPeriods, setYearPeriods] = useState(['Base Year']);
+  // T&M materials
+  const [materials, setMaterials] = useState([{ id: Date.now(), description: '', actualCost: 0, markupPercent: 0 }]);
+
+  const isFFP = /fixed.price|ffp/i.test(contractType);
+  const isTM = /time.*material|t\s*&\s*m|t&m/i.test(contractType);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -643,39 +650,117 @@ function PricingTable({ onContentUpdate }) {
     setOdcs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value } : o)));
   const removeOdc = (id) => setOdcs((prev) => prev.filter((o) => o.id !== id));
 
+  // FFP year helpers
+  const addYearPeriod = () => {
+    const optionNum = yearPeriods.length;
+    setYearPeriods((prev) => [...prev, `Option Year ${optionNum}`]);
+  };
+  const removeYearPeriod = (idx) => {
+    if (yearPeriods.length <= 1) return;
+    setYearPeriods((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // T&M materials helpers
+  const addMaterial = () => setMaterials((prev) => [...prev, { id: Date.now(), description: '', actualCost: 0, markupPercent: 0 }]);
+  const updateMaterial = (id, field, value) =>
+    setMaterials((prev) => prev.map((m) => (m.id === id ? { ...m, [field]: value } : m)));
+  const removeMaterial = (id) => setMaterials((prev) => prev.filter((m) => m.id !== id));
+
   const laborTotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
   const odcTotal = odcs.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
-  const grandTotal = laborTotal + odcTotal;
+  const materialsTotal = materials.reduce((sum, m) => {
+    const cost = parseFloat(m.actualCost) || 0;
+    const markup = parseFloat(m.markupPercent) || 0;
+    return sum + cost + (cost * markup / 100);
+  }, 0);
+  const grandTotal = laborTotal + odcTotal + (isTM ? materialsTotal : 0);
 
   // Sync pricing table data back to parent as HTML content
   useEffect(() => {
     const html = buildPricingHtml();
     onContentUpdate(html);
-  }, [lineItems, odcs, notes]);
+  }, [lineItems, odcs, notes, yearPeriods, materials, contractType]);
+
+  const fmtNum = (n) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const th = (text, align = 'left') => `<th style="padding:8px;border:1px solid #ddd;text-align:${align}">${text}</th>`;
+  const td = (text, align = 'left') => `<td style="padding:8px;border:1px solid #ddd;text-align:${align}">${text}</td>`;
 
   const buildPricingHtml = () => {
     let html = '<h2>Cost / Price Proposal</h2>';
-    html += '<h3>Labor Categories & Pricing</h3>';
-    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
-    html += '<tr style="background:#1e293b;color:white"><th style="padding:8px;border:1px solid #ddd;text-align:left">CLIN</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Description</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Labor Category</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Qty</th><th style="padding:8px;border:1px solid #ddd;text-align:left">Unit</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Unit Rate ($)</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Total ($)</th></tr>';
-    lineItems.forEach((item) => {
-      html += `<tr><td style="padding:8px;border:1px solid #ddd">${item.clin}</td><td style="padding:8px;border:1px solid #ddd">${item.description}</td><td style="padding:8px;border:1px solid #ddd">${item.laborCategory}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${item.quantity}</td><td style="padding:8px;border:1px solid #ddd">${item.unit}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${parseFloat(item.unitRate).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${item.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
-    });
-    html += `<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6" style="padding:8px;border:1px solid #ddd;text-align:right">Labor Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${laborTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
-    html += '</table>';
 
-    if (odcs.length > 0) {
-      html += '<h3>Other Direct Costs (ODCs)</h3>';
-      html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
-      html += '<tr style="background:#1e293b;color:white"><th style="padding:8px;border:1px solid #ddd;text-align:left">Description</th><th style="padding:8px;border:1px solid #ddd;text-align:right">Amount ($)</th></tr>';
-      odcs.forEach((o) => {
-        html += `<tr><td style="padding:8px;border:1px solid #ddd">${o.description}</td><td style="padding:8px;border:1px solid #ddd;text-align:right">${parseFloat(o.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
+    if (isFFP) {
+      // Fixed Price: year-wise tables
+      yearPeriods.forEach((yearLabel) => {
+        html += `<h3>${yearLabel}</h3>`;
+        html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+        html += `<tr style="background:#1e293b;color:white">${th('CLIN')}${th('Description')}${th('Labor Category')}${th('Qty', 'right')}${th('Unit')}${th('Unit Rate ($)', 'right')}${th('Total ($)', 'right')}</tr>`;
+        lineItems.forEach((item) => {
+          html += `<tr>${td(item.clin)}${td(item.description)}${td(item.laborCategory)}${td(item.quantity, 'right')}${td(item.unit)}${td(fmtNum(item.unitRate), 'right')}${td(fmtNum(item.total), 'right')}</tr>`;
+        });
+        const yearTotal = lineItems.reduce((s, i) => s + (i.total || 0), 0);
+        html += `<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6" style="padding:8px;border:1px solid #ddd;text-align:right">${yearLabel} Total</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${fmtNum(yearTotal)}</td></tr>`;
+        html += '</table>';
       });
-      html += `<tr style="background:#f1f5f9;font-weight:bold"><td style="padding:8px;border:1px solid #ddd;text-align:right">ODC Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${odcTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`;
+
+      // Grand total across all years
+      const allYearsTotal = laborTotal * yearPeriods.length;
+      html += `<h3>Total Fixed Price (All Periods): $${fmtNum(allYearsTotal + odcTotal)}</h3>`;
+
+    } else if (isTM) {
+      // Time & Materials: specific headers per client request
+      html += '<h3>Labor Categories & Rates</h3>';
+      html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+      html += `<tr style="background:#1e293b;color:white">${th('CLIN')}${th('Description (SOW)')}${th('LCAT')}${th('Hourly Rate ($)', 'right')}${th('Expected Hours', 'right')}${th('Total Amount ($)', 'right')}</tr>`;
+      lineItems.forEach((item) => {
+        html += `<tr>${td(item.clin)}${td(item.description)}${td(item.laborCategory)}${td(fmtNum(item.unitRate), 'right')}${td(item.quantity, 'right')}${td(fmtNum(item.total), 'right')}</tr>`;
+      });
+      html += `<tr style="background:#f1f5f9;font-weight:bold"><td colspan="5" style="padding:8px;border:1px solid #ddd;text-align:right">Labor Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${fmtNum(laborTotal)}</td></tr>`;
+      html += '</table>';
+
+      // Materials section
+      if (materials.some((m) => m.description || m.actualCost)) {
+        html += '<h3>Materials (Actual Cost + Markup)</h3>';
+        html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+        html += `<tr style="background:#1e293b;color:white">${th('Description')}${th('Actual Cost ($)', 'right')}${th('Markup (%)', 'right')}${th('Total ($)', 'right')}</tr>`;
+        materials.forEach((m) => {
+          const cost = parseFloat(m.actualCost) || 0;
+          const markup = parseFloat(m.markupPercent) || 0;
+          const total = cost + (cost * markup / 100);
+          html += `<tr>${td(m.description)}${td(fmtNum(cost), 'right')}${td(markup + '%', 'right')}${td(fmtNum(total), 'right')}</tr>`;
+        });
+        html += `<tr style="background:#f1f5f9;font-weight:bold"><td colspan="3" style="padding:8px;border:1px solid #ddd;text-align:right">Materials Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${fmtNum(materialsTotal)}</td></tr>`;
+        html += '</table>';
+      }
+
+      html += `<h3>Total Proposed Price: $${fmtNum(grandTotal)}</h3>`;
+
+    } else {
+      // Default / generic layout
+      html += '<h3>Labor Categories & Pricing</h3>';
+      html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+      html += `<tr style="background:#1e293b;color:white">${th('CLIN')}${th('Description')}${th('Labor Category')}${th('Qty', 'right')}${th('Unit')}${th('Unit Rate ($)', 'right')}${th('Total ($)', 'right')}</tr>`;
+      lineItems.forEach((item) => {
+        html += `<tr>${td(item.clin)}${td(item.description)}${td(item.laborCategory)}${td(item.quantity, 'right')}${td(item.unit)}${td(fmtNum(item.unitRate), 'right')}${td(fmtNum(item.total), 'right')}</tr>`;
+      });
+      html += `<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6" style="padding:8px;border:1px solid #ddd;text-align:right">Labor Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${fmtNum(laborTotal)}</td></tr>`;
       html += '</table>';
     }
 
-    html += `<h3>Total Proposed Price: $${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h3>`;
+    // ODCs (for non-T&M or if T&M also has ODCs)
+    if (!isTM && odcs.some((o) => o.description || o.amount)) {
+      html += '<h3>Other Direct Costs (ODCs)</h3>';
+      html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+      html += `<tr style="background:#1e293b;color:white">${th('Description')}${th('Amount ($)', 'right')}</tr>`;
+      odcs.forEach((o) => {
+        html += `<tr>${td(o.description)}${td(fmtNum(parseFloat(o.amount || 0)), 'right')}</tr>`;
+      });
+      html += `<tr style="background:#f1f5f9;font-weight:bold"><td style="padding:8px;border:1px solid #ddd;text-align:right">ODC Subtotal</td><td style="padding:8px;border:1px solid #ddd;text-align:right">$${fmtNum(odcTotal)}</td></tr>`;
+      html += '</table>';
+    }
+
+    if (!isFFP && !isTM) {
+      html += `<h3>Total Proposed Price: $${fmtNum(grandTotal)}</h3>`;
+    }
     if (notes) html += `<h3>Pricing Notes & Assumptions</h3><p>${notes}</p>`;
     return html;
   };
@@ -723,178 +808,284 @@ function PricingTable({ onContentUpdate }) {
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-navy text-white">
-                <th className="px-2 py-2.5 rounded-tl-lg w-8 text-center">
-                  <input
-                    type="checkbox"
-                    checked={lineItems.length > 0 && selectedIds.size === lineItems.length}
-                    onChange={toggleSelectAll}
-                    className="w-3.5 h-3.5 rounded cursor-pointer accent-white"
-                  />
-                </th>
-                <th className="px-3 py-2.5 text-left font-medium">CLIN</th>
-                <th className="px-3 py-2.5 text-left font-medium">Description</th>
-                <th className="px-3 py-2.5 text-left font-medium">Labor Category</th>
-                <th className="px-3 py-2.5 text-right font-medium">Qty</th>
-                <th className="px-3 py-2.5 text-left font-medium">Unit</th>
-                <th className="px-3 py-2.5 text-right font-medium">Rate ($)</th>
-                <th className="px-3 py-2.5 text-right font-medium">Total</th>
-                <th className="px-3 py-2.5 rounded-tr-lg w-10"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((item, idx) => (
-                <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${selectedIds.has(item.id) ? 'bg-blue-50/60' : ''}`}>
-                  <td className="px-2 py-1.5 border-b border-gray-100 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(item.id)}
-                      onChange={() => toggleSelect(item.id)}
-                      className="w-3.5 h-3.5 rounded cursor-pointer accent-navy"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100">
-                    <input
-                      type="text"
-                      value={item.clin}
-                      onChange={(e) => updateLineItem(item.id, 'clin', e.target.value)}
-                      placeholder="0001"
-                      className="w-16 px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100">
-                    <input
-                      type="text"
-                      value={item.description}
-                      onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                      placeholder="e.g., IT Support Services"
-                      className="w-full min-w-[140px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100">
-                    <input
-                      type="text"
-                      value={item.laborCategory}
-                      onChange={(e) => updateLineItem(item.id, 'laborCategory', e.target.value)}
-                      placeholder="e.g., Sr. Developer"
-                      className="w-full min-w-[120px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100">
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value)}
-                      min="0"
-                      className="w-16 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100">
-                    <select
-                      value={item.unit}
-                      onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)}
-                      className="px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue/30"
-                    >
-                      {unitOptions.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100">
-                    <input
-                      type="number"
-                      value={item.unitRate}
-                      onChange={(e) => updateLineItem(item.id, 'unitRate', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-24 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100 text-right text-xs font-semibold text-navy">
-                    {fmt(item.total)}
-                  </td>
-                  <td className="px-2 py-1.5 border-b border-gray-100">
-                    {lineItems.length > 1 && (
-                      <button
-                        onClick={() => removeLineItem(item.id)}
-                        className="p-1 text-red-400 hover:text-red-600 transition-colors cursor-pointer"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
+        {/* FFP: Year Period Controls */}
+        {isFFP && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {yearPeriods.map((yr, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 px-3 py-1.5 bg-navy/10 text-navy text-xs font-medium rounded-full">
+                {yr}
+                {yearPeriods.length > 1 && (
+                  <button onClick={() => removeYearPeriod(idx)} className="ml-1 text-red-400 hover:text-red-600 cursor-pointer">
+                    <TrashIcon className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            ))}
+            <button
+              onClick={addYearPeriod}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-accent hover:text-accent-dark bg-accent/5 hover:bg-accent/10 rounded-full transition-colors cursor-pointer"
+            >
+              <PlusIcon className="w-3 h-3" /> Add Year
+            </button>
+          </div>
+        )}
+
+        {/* T&M: 6-column layout */}
+        {isTM ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-navy text-white">
+                  <th className="px-2 py-2.5 rounded-tl-lg w-8 text-center">
+                    <input type="checkbox" checked={lineItems.length > 0 && selectedIds.size === lineItems.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded cursor-pointer accent-white" />
+                  </th>
+                  <th className="px-3 py-2.5 text-left font-medium">CLIN</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Description (SOW)</th>
+                  <th className="px-3 py-2.5 text-left font-medium">LCAT</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Hourly Rate ($)</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Expected Hours</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Total Amount</th>
+                  <th className="px-3 py-2.5 rounded-tr-lg w-10"></th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-navy/5 font-semibold">
-                <td colSpan="7" className="px-3 py-2.5 text-right text-sm text-navy">
-                  Labor Subtotal
-                </td>
-                <td className="px-3 py-2.5 text-right text-sm text-navy">{fmt(laborTotal)}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {lineItems.map((item, idx) => (
+                  <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${selectedIds.has(item.id) ? 'bg-blue-50/60' : ''}`}>
+                    <td className="px-2 py-1.5 border-b border-gray-100 text-center">
+                      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} className="w-3.5 h-3.5 rounded cursor-pointer accent-navy" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="text" value={item.clin} onChange={(e) => updateLineItem(item.id, 'clin', e.target.value)} placeholder="0001" className="w-16 px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="text" value={item.description} onChange={(e) => updateLineItem(item.id, 'description', e.target.value)} placeholder="e.g., IT Support Services" className="w-full min-w-[140px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="text" value={item.laborCategory} onChange={(e) => updateLineItem(item.id, 'laborCategory', e.target.value)} placeholder="e.g., Sr. Developer" className="w-full min-w-[120px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="number" value={item.unitRate} onChange={(e) => updateLineItem(item.id, 'unitRate', e.target.value)} min="0" step="0.01" className="w-24 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="number" value={item.quantity} onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value)} min="0" className="w-20 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 text-right text-xs font-semibold text-navy">
+                      {fmt(item.total)}
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      {lineItems.length > 1 && (
+                        <button onClick={() => removeLineItem(item.id)} className="p-1 text-red-400 hover:text-red-600 transition-colors cursor-pointer">
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-navy/5 font-semibold">
+                  <td colSpan="6" className="px-3 py-2.5 text-right text-sm text-navy">Labor Subtotal</td>
+                  <td className="px-3 py-2.5 text-right text-sm text-navy">{fmt(laborTotal)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          /* Generic / FFP: 7-column layout */
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-navy text-white">
+                  <th className="px-2 py-2.5 rounded-tl-lg w-8 text-center">
+                    <input type="checkbox" checked={lineItems.length > 0 && selectedIds.size === lineItems.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded cursor-pointer accent-white" />
+                  </th>
+                  <th className="px-3 py-2.5 text-left font-medium">CLIN</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Description</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Labor Category</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Qty</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Unit</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Rate ($)</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Total</th>
+                  <th className="px-3 py-2.5 rounded-tr-lg w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item, idx) => (
+                  <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${selectedIds.has(item.id) ? 'bg-blue-50/60' : ''}`}>
+                    <td className="px-2 py-1.5 border-b border-gray-100 text-center">
+                      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} className="w-3.5 h-3.5 rounded cursor-pointer accent-navy" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="text" value={item.clin} onChange={(e) => updateLineItem(item.id, 'clin', e.target.value)} placeholder="0001" className="w-16 px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="text" value={item.description} onChange={(e) => updateLineItem(item.id, 'description', e.target.value)} placeholder="e.g., IT Support Services" className="w-full min-w-[140px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="text" value={item.laborCategory} onChange={(e) => updateLineItem(item.id, 'laborCategory', e.target.value)} placeholder="e.g., Sr. Developer" className="w-full min-w-[120px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="number" value={item.quantity} onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value)} min="0" className="w-16 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <select value={item.unit} onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)} className="px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue/30">
+                        {unitOptions.map((u) => (<option key={u} value={u}>{u}</option>))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      <input type="number" value={item.unitRate} onChange={(e) => updateLineItem(item.id, 'unitRate', e.target.value)} min="0" step="0.01" className="w-24 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100 text-right text-xs font-semibold text-navy">
+                      {fmt(item.total)}
+                    </td>
+                    <td className="px-2 py-1.5 border-b border-gray-100">
+                      {lineItems.length > 1 && (
+                        <button onClick={() => removeLineItem(item.id)} className="p-1 text-red-400 hover:text-red-600 transition-colors cursor-pointer">
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-navy/5 font-semibold">
+                  <td colSpan="7" className="px-3 py-2.5 text-right text-sm text-navy">Labor Subtotal</td>
+                  <td className="px-3 py-2.5 text-right text-sm text-navy">{fmt(laborTotal)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Other Direct Costs */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-navy">Other Direct Costs (ODCs)</h3>
-          <button
-            onClick={addOdc}
-            className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Add ODC
-          </button>
+      {/* T&M: Materials Section */}
+      {isTM && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-navy">Materials (Actual Cost + Markup)</h3>
+            <button
+              onClick={addMaterial}
+              className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add Material
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-navy text-white">
+                  <th className="px-3 py-2.5 rounded-tl-lg text-left font-medium">Description</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Actual Cost ($)</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Markup (%)</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Total ($)</th>
+                  <th className="px-3 py-2.5 rounded-tr-lg w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {materials.map((mat, idx) => {
+                  const cost = parseFloat(mat.actualCost) || 0;
+                  const markup = parseFloat(mat.markupPercent) || 0;
+                  const matTotal = cost + (cost * markup / 100);
+                  return (
+                    <tr key={mat.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-2 py-1.5 border-b border-gray-100">
+                        <input type="text" value={mat.description} onChange={(e) => updateMaterial(mat.id, 'description', e.target.value)} placeholder="e.g., Software licenses, Hardware" className="w-full min-w-[180px] px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                      </td>
+                      <td className="px-2 py-1.5 border-b border-gray-100">
+                        <input type="number" value={mat.actualCost} onChange={(e) => updateMaterial(mat.id, 'actualCost', e.target.value)} min="0" step="0.01" className="w-28 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                      </td>
+                      <td className="px-2 py-1.5 border-b border-gray-100">
+                        <input type="number" value={mat.markupPercent} onChange={(e) => updateMaterial(mat.id, 'markupPercent', e.target.value)} min="0" step="0.1" className="w-20 px-2 py-1.5 border border-gray-200 rounded text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue/30" />
+                      </td>
+                      <td className="px-2 py-1.5 border-b border-gray-100 text-right text-xs font-semibold text-navy">
+                        {fmt(matTotal)}
+                      </td>
+                      <td className="px-2 py-1.5 border-b border-gray-100">
+                        {materials.length > 1 && (
+                          <button onClick={() => removeMaterial(mat.id)} className="p-1 text-red-400 hover:text-red-600 transition-colors cursor-pointer">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="bg-navy/5 font-semibold">
+                  <td colSpan="3" className="px-3 py-2.5 text-right text-sm text-navy">Materials Subtotal</td>
+                  <td className="px-3 py-2.5 text-right text-sm text-navy">{fmt(materialsTotal)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-        <div className="space-y-2">
-          {odcs.map((odc) => (
-            <div key={odc.id} className="flex items-center gap-3">
-              <input
-                type="text"
-                value={odc.description}
-                onChange={(e) => updateOdc(odc.id, 'description', e.target.value)}
-                placeholder="e.g., Travel, Software Licenses, Equipment"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue/30"
-              />
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-gray-400">$</span>
+      )}
+
+      {/* Other Direct Costs (not for T&M - materials replace this) */}
+      {!isTM && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-navy">Other Direct Costs (ODCs)</h3>
+            <button
+              onClick={addOdc}
+              className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-dark transition-colors cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add ODC
+            </button>
+          </div>
+          <div className="space-y-2">
+            {odcs.map((odc) => (
+              <div key={odc.id} className="flex items-center gap-3">
                 <input
-                  type="number"
-                  value={odc.amount}
-                  onChange={(e) => updateOdc(odc.id, 'amount', e.target.value)}
-                  min="0"
-                  step="0.01"
-                  className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
+                  type="text"
+                  value={odc.description}
+                  onChange={(e) => updateOdc(odc.id, 'description', e.target.value)}
+                  placeholder="e.g., Travel, Software Licenses, Equipment"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue/30"
                 />
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-400">$</span>
+                  <input
+                    type="number"
+                    value={odc.amount}
+                    onChange={(e) => updateOdc(odc.id, 'amount', e.target.value)}
+                    min="0"
+                    step="0.01"
+                    className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue/30"
+                  />
+                </div>
+                {odcs.length > 1 && (
+                  <button
+                    onClick={() => removeOdc(odc.id)}
+                    className="p-1.5 text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-              {odcs.length > 1 && (
-                <button
-                  onClick={() => removeOdc(odc.id)}
-                  className="p-1.5 text-red-400 hover:text-red-600 transition-colors cursor-pointer"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
+          <div className="flex justify-end mt-2 text-sm font-semibold text-navy">
+            ODC Subtotal: {fmt(odcTotal)}
+          </div>
         </div>
-        <div className="flex justify-end mt-2 text-sm font-semibold text-navy">
-          ODC Subtotal: {fmt(odcTotal)}
-        </div>
-      </div>
+      )}
 
       {/* Grand Total */}
       <div className="bg-accent/10 border border-accent/20 rounded-xl p-5 flex items-center justify-between">
-        <span className="text-lg font-bold text-navy">Total Proposed Price</span>
-        <span className="text-2xl font-bold text-accent">{fmt(grandTotal)}</span>
+        <span className="text-lg font-bold text-navy">
+          {isFFP ? `Total Fixed Price (${yearPeriods.length} Period${yearPeriods.length > 1 ? 's' : ''})` : 'Total Proposed Price'}
+        </span>
+        <span className="text-2xl font-bold text-accent">
+          {fmt(isFFP ? (laborTotal * yearPeriods.length + odcTotal) : grandTotal)}
+        </span>
       </div>
 
       {/* Pricing Notes */}
@@ -1971,6 +2162,7 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                   {key === 'cost_price_proposal' ? (
                     <PricingTable
                       onContentUpdate={(html) => handleContentChange(key, html)}
+                      contractType={opportunityDetails?.contract_type || ''}
                     />
                   ) : (
                     <ReactQuill
