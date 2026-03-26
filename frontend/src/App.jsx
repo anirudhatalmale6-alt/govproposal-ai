@@ -26,6 +26,8 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Expertise from './pages/Expertise';
+import Knowledgebase from './pages/Knowledgebase';
+import PastPerformance from './pages/PastPerformance';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -174,6 +176,8 @@ function AppRoutes() {
         <Route path="/compliance-matrix" element={<ComplianceMatrix />} />
         <Route path="/win-probability" element={<WinProbability />} />
         <Route path="/expertise" element={<Expertise />} />
+        <Route path="/knowledgebase" element={<Knowledgebase />} />
+        <Route path="/past-performance" element={<PastPerformance />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   UserGroupIcon,
   PlusIcon,
@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const TEAM_CATEGORIES = [
+  { key: 'management', label: 'Management Team', description: 'Senior management and leadership team' },
   { key: 'executive', label: 'Executive Team', description: 'C-Suite and senior leadership' },
   { key: 'pm', label: 'Project Managers', description: 'Program and project management leads' },
   { key: 'specialists', label: 'Specialty Team Members', description: 'Subject matter experts and technical specialists' },
@@ -27,12 +28,15 @@ const EMPTY_MEMBER = {
 
 export default function Expertise() {
   const [teams, setTeams] = useState({
+    management: [],
     executive: [],
     pm: [],
     specialists: [],
   });
-  const [activeTab, setActiveTab] = useState('executive');
+  const [activeTab, setActiveTab] = useState('management');
   const [showHierarchy, setShowHierarchy] = useState(false);
+  const fileInputRef = useRef(null);
+  const [pendingPhotoCallback, setPendingPhotoCallback] = useState(null);
 
   const addMember = (category) => {
     setTeams(prev => ({
@@ -55,10 +59,36 @@ export default function Expertise() {
     }));
   };
 
+  const handlePhotoUpload = (category, index) => {
+    setPendingPhotoCallback({ category, index });
+    fileInputRef.current?.click();
+  };
+
+  const onFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !pendingPhotoCallback) return;
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updateMember(pendingPhotoCallback.category, pendingPhotoCallback.index, 'photo', reader.result);
+      setPendingPhotoCallback(null);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const totalMembers = Object.values(teams).flat().length;
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Hidden file input for photo upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onFileSelected}
+      />
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-navy">Team Expertise</h1>
         <p className="text-gray-500 text-sm mt-1">
@@ -119,6 +149,23 @@ export default function Expertise() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-6">
+              {/* Management level */}
+              {teams.management.length > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold text-center mb-2">Management Team</p>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {teams.management.map((m, i) => (
+                      <div key={i} className="bg-gray-700 text-white rounded-lg px-4 py-2.5 text-center min-w-[140px]">
+                        <p className="text-sm font-semibold">{m.name || 'Unnamed'}</p>
+                        <p className="text-[10px] text-white/60">{m.title || 'Manager'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {teams.management.length > 0 && (teams.executive.length > 0 || teams.pm.length > 0 || teams.specialists.length > 0) && (
+                <div className="w-px h-8 bg-gray-200" />
+              )}
               {/* Executive level */}
               {teams.executive.length > 0 && (
                 <div>
@@ -210,66 +257,93 @@ export default function Expertise() {
                     <TrashIcon className="w-4 h-4" />
                   </button>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Full Name</label>
-                      <input
-                        type="text"
-                        value={member.name}
-                        onChange={(e) => updateMember(activeTab, index, 'name', e.target.value)}
-                        placeholder="John Smith"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
-                      />
+                  <div className="flex gap-4">
+                    {/* Photo upload */}
+                    <div className="flex-shrink-0">
+                      {member.photo ? (
+                        <div className="relative group">
+                          <img src={member.photo} alt={member.name || 'Team member'} className="w-20 h-24 object-cover rounded-lg border border-gray-200" />
+                          <button
+                            type="button"
+                            onClick={() => updateMember(activeTab, index, 'photo', '')}
+                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <TrashIcon className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handlePhotoUpload(activeTab, index)}
+                          className="w-20 h-24 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-white hover:border-gray-400 transition-colors cursor-pointer"
+                        >
+                          <PhotoIcon className="w-6 h-6 text-gray-300" />
+                          <span className="text-[10px] text-gray-400 mt-1">Photo</span>
+                        </button>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Title / Role</label>
-                      <input
-                        type="text"
-                        value={member.title}
-                        onChange={(e) => updateMember(activeTab, index, 'title', e.target.value)}
-                        placeholder="Chief Executive Officer"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={member.email}
-                        onChange={(e) => updateMember(activeTab, index, 'email', e.target.value)}
-                        placeholder="john@company.com"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Years of Experience</label>
-                      <input
-                        type="text"
-                        value={member.yearsExp}
-                        onChange={(e) => updateMember(activeTab, index, 'yearsExp', e.target.value)}
-                        placeholder="15"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Certifications</label>
-                      <input
-                        type="text"
-                        value={member.certifications}
-                        onChange={(e) => updateMember(activeTab, index, 'certifications', e.target.value)}
-                        placeholder="PMP, ITIL, AWS Solutions Architect"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Bio / Summary</label>
-                      <textarea
-                        value={member.bio}
-                        onChange={(e) => updateMember(activeTab, index, 'bio', e.target.value)}
-                        placeholder="Brief professional summary..."
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue resize-none"
-                      />
+
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={member.name}
+                          onChange={(e) => updateMember(activeTab, index, 'name', e.target.value)}
+                          placeholder="John Smith"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Title / Role</label>
+                        <input
+                          type="text"
+                          value={member.title}
+                          onChange={(e) => updateMember(activeTab, index, 'title', e.target.value)}
+                          placeholder="Chief Executive Officer"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={member.email}
+                          onChange={(e) => updateMember(activeTab, index, 'email', e.target.value)}
+                          placeholder="john@company.com"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Years of Experience</label>
+                        <input
+                          type="text"
+                          value={member.yearsExp}
+                          onChange={(e) => updateMember(activeTab, index, 'yearsExp', e.target.value)}
+                          placeholder="15"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Certifications</label>
+                        <input
+                          type="text"
+                          value={member.certifications}
+                          onChange={(e) => updateMember(activeTab, index, 'certifications', e.target.value)}
+                          placeholder="PMP, ITIL, AWS Solutions Architect"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Bio / Summary</label>
+                        <textarea
+                          value={member.bio}
+                          onChange={(e) => updateMember(activeTab, index, 'bio', e.target.value)}
+                          placeholder="Brief professional summary..."
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue resize-none"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -26,7 +26,6 @@ import api from '../services/api';
 
 const TABS = [
   { key: 'labor-rates', label: 'Labor Rate Intelligence', icon: CurrencyDollarIcon },
-  { key: 'competitor', label: 'Competitor Analysis', icon: UserGroupIcon },
   { key: 'pricing', label: 'Pricing Strategy', icon: ScaleIcon },
 ];
 
@@ -1250,7 +1249,6 @@ export default function MarketResearch() {
 
       {/* Tab Content */}
       {activeTab === 'labor-rates' && <LaborRateTab />}
-      {activeTab === 'competitor' && <CompetitorTab />}
       {activeTab === 'pricing' && <PricingStrategyTab />}
     </div>
   );

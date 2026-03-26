@@ -33,11 +33,14 @@ import { useAuth } from '../context/AuthContext';
 // Top-level navigation tabs (shown in header)
 const topNavTabs = [
   { label: 'Dashboard', path: '/dashboard', icon: HomeIcon },
-  { label: 'Business Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
-  { label: 'Expertise', path: '/expertise', icon: AcademicCapIcon },
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
-  { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
   { label: 'Proposal', path: '/new-proposal', icon: DocumentTextIcon },
+  { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
+  { label: 'Knowledgebase', path: '/knowledgebase', icon: FolderOpenIcon },
+  { label: 'Past Performance', path: '/past-performance', icon: TrophyIcon },
+  { label: 'Expertise', path: '/expertise', icon: AcademicCapIcon },
+  { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
+  { label: 'Business Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
 ];
 
 // Context-based sidebar items — changes based on active top tab
@@ -55,9 +58,7 @@ const sidebarContextMap = {
     { label: 'Government Registrations', path: '/vendor-profile?section=registrations', icon: GlobeAltIcon },
     { label: 'Contact Details', path: '/vendor-profile?section=contact', icon: UserCircleIcon },
     { label: 'About Organization', path: '/vendor-profile?section=about', icon: SparklesIcon },
-    { label: 'Past Performance', path: '/vendor-profile?section=performance', icon: TrophyIcon },
     { label: 'Capability Statement', path: '/vendor-profile?section=capability', icon: PencilSquareIcon },
-    { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
   ],
   '/expertise': [
     { label: 'Management Team', path: '/expertise', icon: UserGroupIcon },
@@ -72,10 +73,21 @@ const sidebarContextMap = {
     { label: 'Saved Opportunities', path: '/opportunities?section=saved', icon: FolderOpenIcon },
   ],
   '/market-research': [
-    { label: 'Competitor Analysis', path: '/market-research', icon: ChartBarIcon },
-    { label: 'Labor Rate Intelligence', path: '/market-research?section=labor', icon: CreditCardIcon },
+    { label: 'Labor Rate Intelligence', path: '/market-research', icon: CreditCardIcon },
     { label: 'Pricing Strategy', path: '/market-research?section=pricing', icon: TrophyIcon },
     { label: 'SCA Pricing', path: '/market-research?section=sca', icon: DocumentTextIcon },
+  ],
+  '/knowledgebase': [
+    { label: 'Competitor Awards', path: '/knowledgebase', icon: ChartBarIcon },
+    { label: 'Competitor Directory', path: '/knowledgebase?section=directory', icon: UserGroupIcon },
+  ],
+  '/past-performance': [
+    { label: 'Past Performance', path: '/past-performance', icon: TrophyIcon },
+    { label: 'Capability Statement', path: '/past-performance?section=capability', icon: PencilSquareIcon },
+    { label: 'Capability Examples', path: '/past-performance?section=examples', icon: SparklesIcon },
+  ],
+  '/compliance-matrix': [
+    { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
   ],
   '/new-proposal': [
     { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
@@ -110,9 +122,12 @@ export default function Layout() {
   const currentPath = location.pathname;
   const activeTopTab = topNavTabs.find(tab => {
     if (tab.path === '/dashboard') return currentPath === '/dashboard' || currentPath === '/audit-log' || currentPath === '/billing' || currentPath === '/admin';
-    if (tab.path === '/vendor-profile') return currentPath === '/vendor-profile' || currentPath === '/compliance-matrix';
+    if (tab.path === '/vendor-profile') return currentPath === '/vendor-profile';
     if (tab.path === '/opportunities') return currentPath === '/opportunities' || currentPath === '/rfp-deconstructor';
     if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts';
+    if (tab.path === '/compliance-matrix') return currentPath === '/compliance-matrix';
+    if (tab.path === '/knowledgebase') return currentPath === '/knowledgebase';
+    if (tab.path === '/past-performance') return currentPath === '/past-performance';
     return currentPath === tab.path || currentPath.startsWith(tab.path);
   })?.path || '/dashboard';
 

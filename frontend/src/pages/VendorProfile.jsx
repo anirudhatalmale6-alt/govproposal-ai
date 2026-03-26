@@ -595,56 +595,6 @@ export default function VendorProfile() {
             />
           </div>
 
-          {/* Management Team */}
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <label className={labelClass + ' mb-0'}>
-                <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4" /> Management Team</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => addArrayItem('management_team', { name: '', designation: '', about: '', photo: '' })}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-navy bg-navy/5 hover:bg-navy/10 rounded-lg transition-colors cursor-pointer"
-              >
-                <PlusIcon className="w-3.5 h-3.5" /> Add Member
-              </button>
-            </div>
-            {(profile.management_team || []).length === 0 ? (
-              <p className="text-sm text-gray-400 italic">No management team members added.</p>
-            ) : (
-              <div className="space-y-3">
-                {(profile.management_team || []).map((member, i) => (
-                  <TeamMemberCard key={i} member={member} field="management_team" index={i} onUpdate={updateArrayItem} onRemove={removeArrayItem} onImageUpload={handleImageUpload} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Executive Team */}
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <label className={labelClass + ' mb-0'}>
-                <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4" /> Executive Team</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => addArrayItem('executive_team', { name: '', designation: '', about: '', photo: '' })}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-navy bg-navy/5 hover:bg-navy/10 rounded-lg transition-colors cursor-pointer"
-              >
-                <PlusIcon className="w-3.5 h-3.5" /> Add Member
-              </button>
-            </div>
-            {(profile.executive_team || []).length === 0 ? (
-              <p className="text-sm text-gray-400 italic">No executive team members added.</p>
-            ) : (
-              <div className="space-y-3">
-                {(profile.executive_team || []).map((member, i) => (
-                  <TeamMemberCard key={i} member={member} field="executive_team" index={i} onUpdate={updateArrayItem} onRemove={removeArrayItem} onImageUpload={handleImageUpload} />
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Past Performance */}
           <div className="mt-6 pt-6 border-t border-gray-100">
             <div className="flex items-center justify-between mb-3">
