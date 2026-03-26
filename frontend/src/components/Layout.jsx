@@ -58,7 +58,6 @@ const sidebarContextMap = {
     { label: 'Government Registrations', path: '/vendor-profile?section=registrations', icon: GlobeAltIcon },
     { label: 'Contact Details', path: '/vendor-profile?section=contact', icon: UserCircleIcon },
     { label: 'About Organization', path: '/vendor-profile?section=about', icon: SparklesIcon },
-    { label: 'Capability Statement', path: '/vendor-profile?section=capability', icon: PencilSquareIcon },
   ],
   '/expertise': [
     { label: 'Management Team', path: '/expertise', icon: UserGroupIcon },
