@@ -11,7 +11,11 @@ import {
   DocumentArrowDownIcon,
   SparklesIcon,
   MagnifyingGlassIcon,
+  BookmarkIcon,
+  FolderOpenIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
+import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
 import api from '../services/api';
 
 const STATUS_OPTIONS = [
@@ -63,6 +67,54 @@ export default function ComplianceMatrix() {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [editingRow, setEditingRow] = useState(null);
+  const [savedMatrices, setSavedMatrices] = useState([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadPanel, setShowLoadPanel] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveIndustry, setSaveIndustry] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const INDUSTRY_OPTIONS = ['IT Services', 'Healthcare', 'Defense', 'Construction', 'Engineering', 'Consulting', 'Cybersecurity', 'Logistics', 'Environmental', 'Education', 'Other'];
+
+  // Load saved matrices from localStorage
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('saved_compliance_matrices') || '[]');
+      setSavedMatrices(saved);
+    } catch {}
+  }, []);
+
+  const handleSaveMatrix = () => {
+    if (!saveName.trim() || requirements.length === 0) return;
+    const matrix = {
+      id: `matrix-${Date.now()}`,
+      name: saveName.trim(),
+      industry: saveIndustry || 'Other',
+      requirements: requirements,
+      savedAt: new Date().toISOString(),
+      stats: { total: stats.total, compliant: stats.compliant },
+    };
+    const updated = [...savedMatrices, matrix];
+    setSavedMatrices(updated);
+    localStorage.setItem('saved_compliance_matrices', JSON.stringify(updated));
+    setShowSaveModal(false);
+    setSaveName('');
+    setSaveIndustry('');
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleLoadMatrix = (matrix) => {
+    setRequirements(matrix.requirements);
+    setShowUpload(false);
+    setShowLoadPanel(false);
+  };
+
+  const handleDeleteMatrix = (id) => {
+    const updated = savedMatrices.filter(m => m.id !== id);
+    setSavedMatrices(updated);
+    localStorage.setItem('saved_compliance_matrices', JSON.stringify(updated));
+  };
 
   // Check for RFP data from deconstructor
   useEffect(() => {
@@ -243,8 +295,15 @@ export default function ComplianceMatrix() {
           <p className="text-sm text-gray-500 mt-1">Track FAR/RFP requirements and compliance status</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowLoadPanel(!showLoadPanel)} className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
+            <FolderOpenIcon className="w-4 h-4" />
+            Saved ({savedMatrices.length})
+          </button>
           {requirements.length > 0 && (
             <>
+              <button onClick={() => { setShowSaveModal(true); setSaveName(''); setSaveIndustry(''); }} className="flex items-center gap-1.5 px-3 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors cursor-pointer">
+                {saveSuccess ? <><BookmarkSolidIcon className="w-4 h-4" /> Saved!</> : <><BookmarkIcon className="w-4 h-4" /> Save Matrix</>}
+              </button>
               <button onClick={addManualRequirement} className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
                 + Add Row
               </button>
@@ -256,6 +315,78 @@ export default function ComplianceMatrix() {
           )}
         </div>
       </div>
+
+      {/* Save Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowSaveModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-navy mb-4 flex items-center gap-2">
+              <BookmarkIcon className="w-5 h-5" /> Save Compliance Matrix
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
+                <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="e.g., IT Services - FAR Compliance" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" autoFocus />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Industry / Category</label>
+                <select value={saveIndustry} onChange={e => setSaveIndustry(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/30">
+                  <option value="">Select industry...</option>
+                  {INDUSTRY_OPTIONS.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+                </select>
+              </div>
+              <p className="text-xs text-gray-400">{requirements.length} requirements will be saved</p>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">Cancel</button>
+              <button onClick={handleSaveMatrix} disabled={!saveName.trim()} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-dark transition-colors cursor-pointer disabled:opacity-50">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Saved Matrices Panel */}
+      {showLoadPanel && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-navy flex items-center gap-2">
+              <FolderOpenIcon className="w-4 h-4" /> Saved Compliance Matrices
+            </h3>
+            <button onClick={() => setShowLoadPanel(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+              <XCircleIcon className="w-5 h-5" />
+            </button>
+          </div>
+          {savedMatrices.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">No saved matrices yet. Create a compliance matrix and save it for reuse.</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {savedMatrices.map(matrix => (
+                <div key={matrix.id} className="border border-gray-200 rounded-lg p-4 hover:border-accent/50 transition-colors group">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="text-sm font-medium text-navy">{matrix.name}</h4>
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-medium">{matrix.industry}</span>
+                    </div>
+                    <button onClick={() => handleDeleteMatrix(matrix.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                    <span>{matrix.stats.total} requirements</span>
+                    <span>{matrix.stats.compliant} compliant</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400">{new Date(matrix.savedAt).toLocaleDateString()}</span>
+                    <button onClick={() => handleLoadMatrix(matrix)} className="px-3 py-1.5 bg-accent/10 text-accent text-xs font-medium rounded-lg hover:bg-accent/20 transition-colors cursor-pointer">
+                      Load
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Row */}
       {requirements.length > 0 && (
