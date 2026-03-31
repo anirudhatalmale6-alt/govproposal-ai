@@ -15,7 +15,6 @@ import {
   PhotoIcon,
   SparklesIcon,
   UserGroupIcon,
-  StarIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
@@ -702,7 +701,7 @@ export default function VendorProfile() {
           </div>
         </Section>
 
-        {/* ─── 6. GOVERNMENT REGISTRATION ──────────────────────── */}
+        {/* ─── 7. GOVERNMENT REGISTRATION ──────────────────────── */}
         <Section icon={ShieldCheckIcon} title="Government Registration">
           {/* SAM.gov Registration */}
           <div className="mb-6 pb-6 border-b border-gray-100">

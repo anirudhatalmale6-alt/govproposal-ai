@@ -631,6 +631,25 @@ async def generate_proposal(
         opp_agency = request.opportunity.get("agency", "")
         opp_desc = request.opportunity.get("description", "")
 
+        # Build metadata for cover page persistence
+        vendor_data = request.vendor or {}
+        opp_data = request.opportunity or {}
+        proposal_metadata = {
+            "proposal_type": opp_data.get("proposal_type", "Government Contract Proposal"),
+            "agency": opp_agency,
+            "contracting_office": opp_data.get("contracting_office", ""),
+            "solicitation_number": opp_data.get("solicitation_number", ""),
+            "submission_date": opp_data.get("submission_date", ""),
+            "cage_code": vendor_data.get("cage_code", ""),
+            "duns_number": vendor_data.get("duns_number", ""),
+            "naics_codes": vendor_data.get("naics_codes", []),
+            "poc_name": opp_data.get("poc_name", ""),
+            "poc_title": opp_data.get("poc_title", ""),
+            "poc_email": opp_data.get("poc_email", ""),
+            "poc_phone": opp_data.get("poc_phone", ""),
+            "vendor_name": vendor_data.get("company_name", ""),
+        }
+
         db_proposal = Proposal(
             id=proposal_id,
             user_id=current_user.id,
@@ -642,6 +661,7 @@ async def generate_proposal(
                 key: {"title": val["title"], "content": val["content"]}
                 for key, val in generated_sections.items()
             },
+            proposal_metadata=proposal_metadata,
             status="completed",
         )
         db.add(db_proposal)
@@ -664,6 +684,7 @@ async def generate_proposal(
             opportunity_title=opp_title,
             vendor_name=request.vendor.get("company_name", "Unknown Vendor"),
             sections=sections_response,
+            metadata=proposal_metadata,
         )
 
     except HTTPException:
@@ -1310,6 +1331,9 @@ async def export_docx(
                 key: {"title": section.title, "content": section.content}
                 for key, section in request.sections.items()
             },
+            "metadata": request.metadata or {},
+            "company_logo": request.company_logo or "",
+            "volume_assignments": request.volume_assignments or {},
         }
 
         buffer = generate_docx(proposal_data)
@@ -1366,6 +1390,9 @@ async def export_pdf(
                 key: {"title": section.title, "content": section.content}
                 for key, section in request.sections.items()
             },
+            "metadata": request.metadata or {},
+            "company_logo": request.company_logo or "",
+            "volume_assignments": request.volume_assignments or {},
         }
 
         buffer = generate_pdf(proposal_data)

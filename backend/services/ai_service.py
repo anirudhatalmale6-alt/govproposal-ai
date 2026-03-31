@@ -3,6 +3,7 @@ Google Gemini AI integration service for generating government proposal content.
 """
 
 import os
+import re
 import logging
 from typing import Dict, List, Optional
 
@@ -21,29 +22,60 @@ SYSTEM_PROMPT = (
 # Detailed prompt templates for each proposal section
 SECTION_PROMPTS: Dict[str, str] = {
     "cover_page": (
-        "Generate a professional cover page text for a government contract proposal.\n\n"
-        "Include the following elements:\n"
-        "- Proposal title (based on the opportunity)\n"
-        "- Solicitation/Notice number (if available)\n"
-        "- Contracting agency name\n"
-        "- Submitted by: vendor company name and full contact information\n"
-        "- CAGE Code and DUNS/UEI number\n"
-        "- Date of submission\n"
-        "- A brief one-line proposal identifier\n\n"
-        "Format it cleanly with clear labels for each field. "
-        "Do not use markdown headers - just use plain text with clear formatting."
+        "Generate a professional cover page for a government contract proposal.\n\n"
+        "Structure it EXACTLY as follows with these labeled sections:\n\n"
+        "PROPOSAL TITLE: [Use the opportunity title in UPPERCASE, e.g., ENTERPRISE IT MODERNIZATION SERVICES]\n"
+        "PROPOSAL TYPE: [Use the proposal_type field, e.g., Technical & Management Proposal]\n\n"
+        "SUBMITTED TO:\n"
+        "[Agency Name]\n"
+        "[Contracting Office if available]\n\n"
+        "SOLICITATION NUMBER: [RFP/solicitation number]\n\n"
+        "SUBMITTED BY:\n"
+        "[Company Name]\n"
+        "CAGE Code: [cage_code]\n"
+        "UEI / DUNS: [duns_number]\n"
+        "NAICS Codes: [Primary NAICS - description, supporting codes]\n\n"
+        "SUBMISSION DATE: [submission_date or current date]\n\n"
+        "POINT OF CONTACT:\n"
+        "[POC Name]\n"
+        "[POC Title/Division]\n"
+        "Email: [POC Email]\n"
+        "Phone: [POC Phone]\n\n"
+        "PROPOSAL STATEMENT:\n"
+        "[Write a 2-3 sentence professional statement: Company respectfully submits this proposal "
+        "in response to the solicitation. Reference proven expertise relevant to the opportunity. "
+        "Mention commitment to exceeding performance expectations.]\n\n"
+        "CONFIDENTIALITY STATEMENT:\n"
+        "[Write: This proposal contains proprietary and confidential information of [Company]. "
+        "It is submitted solely for evaluation by [Agency] and shall not be disclosed without "
+        "prior written consent.]\n\n"
+        "Use the actual vendor and opportunity data provided. Do NOT use placeholder brackets - "
+        "fill in real values from the context. Format as plain text with clear labels, no markdown headers."
     ),
     "executive_summary": (
-        "Write a compelling executive summary for a government contract proposal.\n\n"
-        "The executive summary should:\n"
-        "1. Open with a strong statement of understanding of the government's need\n"
-        "2. Clearly articulate the vendor's proposed solution\n"
-        "3. Highlight 3-4 key differentiators and strengths\n"
-        "4. Reference relevant past performance briefly\n"
-        "5. Emphasize value proposition and cost-effectiveness\n"
-        "6. Close with a confident commitment to delivery\n\n"
-        "Keep it to approximately 400-600 words. Use professional, persuasive tone "
-        "appropriate for federal procurement officers."
+        "Write a compelling, well-structured executive summary for a government contract proposal.\n\n"
+        "Structure it with these DISTINCT subsections (use these as sub-headings):\n\n"
+        "1. OPENING PARAGRAPH: A strong 2-3 sentence statement where [Company Name] submits "
+        "this proposal in response to [Agency]'s requirement. State what you offer and your "
+        "mission alignment.\n\n"
+        "2. OUR UNDERSTANDING: 1 paragraph showing deep understanding of the agency's need, "
+        "objectives, and challenges. Reference specific requirements from the opportunity.\n\n"
+        "3. OUR SOLUTION: Present the approach built on 3 core pillars:\n"
+        "   - Pillar 1: Deep Domain Expertise (track record, on-time delivery rate)\n"
+        "   - Pillar 2: Innovative Technology Framework (tools, automation, cloud)\n"
+        "   - Pillar 3: Proven Methodology & Compliance (ISO, standards, continuous improvement)\n\n"
+        "4. OUR TEAM: 1 paragraph about the team's qualifications, certifications, "
+        "security clearances, and ability to execute.\n\n"
+        "5. VALUE TO THE GOVERNMENT: Bullet points showing concrete benefits:\n"
+        "   - Improved operational efficiency\n"
+        "   - Reduced lifecycle costs\n"
+        "   - Enhanced security and compliance\n"
+        "   - Accelerated timelines\n\n"
+        "6. COMMITMENT TO EXCELLENCE: Closing paragraph with confident commitment to "
+        "delivering exceptional results that exceed expectations.\n\n"
+        "Use the vendor's actual company name throughout (not placeholders). "
+        "Keep it to 500-700 words. Tone: professional, persuasive, skimmable. "
+        "Use bold for sub-headings. Make it easy for evaluators to scan."
     ),
     "vendor_profile": (
         "Write a comprehensive vendor/company profile section for a government proposal.\n\n"
@@ -302,6 +334,258 @@ SECTION_TITLES: Dict[str, str] = {
 }
 
 
+def _strip_leading_title(content: str, section_title: str) -> str:
+    """Remove duplicate section title from the start of AI-generated content.
+
+    AI often generates content that starts with the section heading, e.g.:
+      <h2>EXECUTIVE SUMMARY</h2><p>Executive Summary TalentTalk IT...</p>
+    Since the editor already displays the section title, this causes duplicates.
+
+    Strips both heading tags and inline title text at the start of the content.
+    """
+    if not content or not section_title:
+        return content
+    title_lower = section_title.lower().strip()
+
+    # Step 1: Remove heading tags that contain the section title
+    # Matches: <h1>Executive Summary</h1>, <h2>EXECUTIVE SUMMARY</h2>, etc.
+    heading_pattern = rf'\s*<h[1-6][^>]*>\s*{re.escape(title_lower)}\s*</h[1-6]>\s*'
+    content = re.sub(heading_pattern, '', content, count=1, flags=re.IGNORECASE).strip()
+
+    # Step 2: Remove the title text if it appears at the very start of remaining content
+    # E.g., <p>Executive Summary TalentTalk...</p> -> <p>TalentTalk...</p>
+    # Or: <p><strong>Company Profile</strong> TalentTalk...</p> -> <p>TalentTalk...</p>
+    text_only = re.sub(r'<[^>]+>', '', content[:200]).strip()
+    if text_only.lower().startswith(title_lower):
+        # Remove title from inside the first tag or at the start
+        inner_pattern = rf'(<p[^>]*>(?:\s*<(?:strong|b|em|i)[^>]*>)?\s*){re.escape(title_lower)}(\s*(?:</(?:strong|b|em|i)>)?\s*)'
+        cleaned = re.sub(inner_pattern, r'\1', content, count=1, flags=re.IGNORECASE)
+        if cleaned != content:
+            # Clean up empty tags like <p><strong></strong> </p>
+            cleaned = re.sub(r'<p[^>]*>\s*(?:<(?:strong|b|em|i)[^>]*>\s*</(?:strong|b|em|i)>\s*)*</p>\s*', '', cleaned)
+            content = cleaned.strip()
+
+    return content
+
+
+def _text_to_html(text: str, section_key: str = "") -> str:
+    """Convert plain-text proposal content into clean HTML for the rich-text editor.
+
+    Handles: headings (ALL CAPS lines), numbered items, bullet points,
+    labeled fields (Key: Value), and regular paragraphs.
+    """
+    if not text or not text.strip():
+        return ""
+
+    # If it already looks like HTML, return as-is
+    if "<p>" in text or "<h2>" in text or "<div>" in text:
+        return text
+
+    lines = text.split("\n")
+    html_parts = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # Skip empty lines
+        if not line:
+            i += 1
+            continue
+
+        # ALL CAPS lines with 3+ words → h2 heading
+        if (line.isupper() and len(line.split()) >= 2 and len(line) > 5
+                and not line.startswith("-") and not line.startswith("•")):
+            html_parts.append(f'<h2>{line.title()}</h2>')
+            i += 1
+            continue
+
+        # Lines ending with colon → subheading (h3)
+        if (line.endswith(":") and len(line) < 80 and not line.startswith("-")
+                and not line.startswith("•") and not line.startswith("–")):
+            html_parts.append(f'<h3>{line[:-1]}</h3>')
+            i += 1
+            continue
+
+        # Numbered items (1. or 1) style) → ordered list
+        if re.match(r'^\d+[\.\)]\s', line):
+            html_parts.append("<ol>")
+            while i < len(lines):
+                li = lines[i].strip()
+                m = re.match(r'^\d+[\.\)]\s*(.*)', li)
+                if m:
+                    content = m.group(1)
+                    # Check for bold prefix like "Deep Domain Expertise — description"
+                    dash_m = re.match(r'^(.+?)\s*[—–-]\s*(.*)', content)
+                    if dash_m:
+                        html_parts.append(f'<li><strong>{dash_m.group(1)}</strong> — {dash_m.group(2)}</li>')
+                    else:
+                        html_parts.append(f'<li>{content}</li>')
+                    i += 1
+                elif not li:
+                    i += 1
+                    break
+                else:
+                    break
+            html_parts.append("</ol>")
+            continue
+
+        # Bullet items (-, •, ✔) → unordered list
+        if re.match(r'^[-•✔✓►▸]\s', line):
+            html_parts.append("<ul>")
+            while i < len(lines):
+                li = lines[i].strip()
+                bm = re.match(r'^[-•✔✓►▸]\s*(.*)', li)
+                if bm:
+                    html_parts.append(f'<li>{bm.group(1)}</li>')
+                    i += 1
+                elif not li:
+                    i += 1
+                    break
+                else:
+                    break
+            html_parts.append("</ul>")
+            continue
+
+        # "Label: Value" pattern on single line (common in cover pages)
+        label_m = re.match(r'^([A-Z][A-Za-z /&]+):\s*(.+)', line)
+        if label_m and len(label_m.group(1)) < 40:
+            html_parts.append(f'<p><strong>{label_m.group(1)}:</strong> {label_m.group(2)}</p>')
+            i += 1
+            continue
+
+        # Regular paragraph — collect consecutive non-special lines
+        para_lines = [line]
+        i += 1
+        while i < len(lines):
+            nxt = lines[i].strip()
+            if not nxt:
+                i += 1
+                break
+            # Stop if next line looks like a heading, list, or label
+            if (nxt.isupper() and len(nxt.split()) >= 2 and len(nxt) > 5):
+                break
+            if re.match(r'^\d+[\.\)]\s', nxt):
+                break
+            if re.match(r'^[-•✔✓►▸]\s', nxt):
+                break
+            if nxt.endswith(":") and len(nxt) < 80:
+                break
+            para_lines.append(nxt)
+            i += 1
+
+        html_parts.append(f'<p>{"<br/>".join(para_lines)}</p>')
+
+    return "\n".join(html_parts)
+
+
+def _cover_page_to_html(text: str, vendor: Dict, opportunity: Dict) -> str:
+    """Convert cover page content into a structured, visually appealing HTML block."""
+    company = vendor.get("company_name", "")
+    agency = opportunity.get("agency", "")
+    office = opportunity.get("contracting_office", "")
+    title = opportunity.get("title", "Government Services Contract")
+    cage = vendor.get("cage_code", "")
+    duns = vendor.get("duns_number", "")
+    naics = vendor.get("naics_codes", "")
+    if isinstance(naics, list):
+        naics = ", ".join(naics) if naics else ""
+    solicitation = opportunity.get("solicitation_number", "")
+    submission_date = opportunity.get("submission_date", "March 2026")
+    poc_name = opportunity.get("poc_name", "")
+    poc_title = opportunity.get("poc_title", "")
+    poc_email = opportunity.get("poc_email", "")
+    poc_phone = opportunity.get("poc_phone", "")
+    proposal_type = opportunity.get("proposal_type", "Technical & Management Proposal")
+
+    # Extract proposal statement and confidentiality from AI text if present
+    proposal_stmt = ""
+    confidentiality = ""
+    if text:
+        # Try to find proposal statement section
+        ps_match = re.search(r'(?:PROPOSAL STATEMENT|Proposal Statement)[:\s]*\n?(.*?)(?=\n\s*(?:CONFIDENTIALITY|Confidentiality)|$)', text, re.DOTALL | re.IGNORECASE)
+        if ps_match:
+            proposal_stmt = ps_match.group(1).strip()
+        conf_match = re.search(r'(?:CONFIDENTIALITY STATEMENT|Confidentiality Statement)[:\s]*\n?(.*?)$', text, re.DOTALL | re.IGNORECASE)
+        if conf_match:
+            confidentiality = conf_match.group(1).strip()
+
+    if not proposal_stmt:
+        proposal_stmt = (
+            f"{company} respectfully submits this proposal in response to the above-referenced "
+            f"solicitation. Our approach combines advanced technology, industry best practices, "
+            f"and a highly skilled workforce to ensure successful delivery."
+        )
+    if not confidentiality:
+        confidentiality = (
+            f"This proposal contains proprietary and confidential information of {company}. "
+            f"It is submitted solely for evaluation purposes and shall not be disclosed "
+            f"without prior written consent."
+        )
+
+    # Build structured cover page HTML
+    parts = []
+    parts.append(f'<div style="text-align:center;padding:20px 0">')
+    parts.append(f'<h1 style="color:#1B2A4A;font-size:24px;margin:0 0 8px">{title.upper()}</h1>')
+    parts.append(f'<p style="color:#10B981;font-size:16px;margin:0 0 24px">{proposal_type}</p>')
+
+    if agency:
+        parts.append(f'<p style="color:#6B7280;font-size:12px;margin:0">Submitted To</p>')
+        parts.append(f'<p style="color:#1B2A4A;font-size:16px;font-weight:bold;margin:4px 0">{agency}</p>')
+        if office:
+            parts.append(f'<p style="color:#374151;font-size:14px;margin:0 0 16px">{office}</p>')
+        else:
+            parts.append(f'<br/>')
+
+    if solicitation:
+        parts.append(f'<p style="color:#374151;margin:8px 0">Solicitation No: {solicitation}</p>')
+
+    parts.append(f'<hr style="border:none;border-top:2px solid #10B981;width:60%;margin:16px auto"/>')
+
+    if company:
+        parts.append(f'<p style="color:#6B7280;font-size:12px;margin:0">Submitted By</p>')
+        parts.append(f'<p style="color:#1B2A4A;font-size:18px;font-weight:bold;margin:4px 0">{company}</p>')
+        details = []
+        if cage:
+            details.append(f"CAGE: {cage}")
+        if duns:
+            details.append(f"UEI/DUNS: {duns}")
+        if naics:
+            details.append(f"NAICS: {naics}")
+        if details:
+            parts.append(f'<p style="color:#6B7280;font-size:12px;margin:4px 0">{" | ".join(details)}</p>')
+        parts.append(f'<br/>')
+
+    if submission_date:
+        parts.append(f'<p style="color:#374151;margin:8px 0"><strong>Submission Date:</strong> {submission_date}</p>')
+
+    if poc_name:
+        parts.append(f'<br/>')
+        parts.append(f'<p style="color:#6B7280;font-size:12px;margin:0">Point of Contact</p>')
+        parts.append(f'<p style="color:#1B2A4A;font-weight:bold;margin:4px 0">{poc_name}</p>')
+        if poc_title:
+            parts.append(f'<p style="color:#374151;font-size:13px;margin:0">{poc_title}</p>')
+        poc_details = []
+        if poc_email:
+            poc_details.append(f"Email: {poc_email}")
+        if poc_phone:
+            poc_details.append(f"Phone: {poc_phone}")
+        if poc_details:
+            parts.append(f'<p style="color:#6B7280;font-size:12px;margin:4px 0">{" | ".join(poc_details)}</p>')
+
+    parts.append(f'</div>')
+
+    # Proposal Statement
+    parts.append(f'<h3 style="color:#1B2A4A;margin-top:24px">Proposal Statement</h3>')
+    parts.append(f'<p>{proposal_stmt}</p>')
+
+    # Confidentiality
+    parts.append(f'<h3 style="color:#1B2A4A;margin-top:16px">Confidentiality Statement</h3>')
+    parts.append(f'<p style="color:#6B7280;font-style:italic">{confidentiality}</p>')
+
+    return "\n".join(parts)
+
+
 class AIService:
     """Service for generating proposal content using Google Gemini API."""
 
@@ -392,6 +676,65 @@ class AIService:
                 "GO/NO-GO RECOMMENDATION: PURSUE\n"
                 "This opportunity aligns well with our core competencies and past performance profile. "
                 "Recommend proceeding with proposal development."
+            )
+
+    def _build_past_performance_content(self, vendor: Dict, company: str, opp_title: str) -> str:
+        """Build past performance section using actual vendor records if available."""
+        pp_records = vendor.get("past_performances", [])
+        if pp_records and isinstance(pp_records, list) and len(pp_records) > 0:
+            lines = [
+                f"Past Performance\n",
+                f"{company} has a proven track record of successful contract execution. "
+                f"Below are our past performance references demonstrating our "
+                f"capability to deliver services similar to {opp_title}.\n"
+            ]
+            for i, pp in enumerate(pp_records, 1):
+                if not isinstance(pp, dict):
+                    continue
+                name = pp.get("contract_name", f"Contract Reference {i}")
+                lines.append(f"Reference {i}: {name}")
+                if pp.get("agency"):
+                    lines.append(f"- Agency: {pp['agency']}")
+                if pp.get("contract_number"):
+                    lines.append(f"- Contract Number: {pp['contract_number']}")
+                if pp.get("contract_value"):
+                    lines.append(f"- Contract Value: {pp['contract_value']}")
+                start = pp.get("start_year", "")
+                end = pp.get("end_year", "")
+                if start or end:
+                    lines.append(f"- Period of Performance: {start} - {end}")
+                if pp.get("staffing_count"):
+                    lines.append(f"- Staffing: {pp['staffing_count']}")
+                if pp.get("description"):
+                    lines.append(f"- Scope: {pp['description']}")
+                lines.append("")  # blank line between references
+            return "\n".join(lines)
+        else:
+            # Fallback to demo data
+            return (
+                f"Past Performance\n\n"
+                f"{company} has a proven track record of successful contract execution. "
+                f"Below are representative past performance references demonstrating our "
+                f"capability to deliver services similar to {opp_title}.\n\n"
+                f"Reference 1: Enterprise IT Modernization\n"
+                f"- Agency: Department of Defense\n"
+                f"- Contract Value: $4.2M\n"
+                f"- Period: 2023-2025\n"
+                f"- Scope: End-to-end IT modernization including cloud migration, "
+                f"application development, and cybersecurity implementation\n"
+                f"- Result: Delivered on-time and under budget; CPARS rating: Exceptional\n\n"
+                f"Reference 2: Cybersecurity Operations Support\n"
+                f"- Agency: Department of Homeland Security\n"
+                f"- Contract Value: $2.8M\n"
+                f"- Period: 2022-2024\n"
+                f"- Scope: 24/7 SOC operations, threat intelligence, incident response\n"
+                f"- Result: 99.99% uptime; zero critical security breaches; CPARS: Very Good\n\n"
+                f"Reference 3: Cloud Infrastructure Services\n"
+                f"- Agency: General Services Administration\n"
+                f"- Contract Value: $1.5M\n"
+                f"- Period: 2024-2025\n"
+                f"- Scope: AWS GovCloud migration and managed services\n"
+                f"- Result: 40% cost reduction achieved; CPARS: Exceptional"
             )
 
     def _generate_demo_section(self, section_key: str, vendor: Dict, opportunity: Dict) -> str:
@@ -496,31 +839,7 @@ class AIService:
                 f"all configured to meet federal security and compliance requirements. "
                 f"We maintain FedRAMP-ready infrastructure and NIST-compliant processes."
             ),
-            "past_performance": (
-                f"Past Performance\n\n"
-                f"{company} has a proven track record of successful contract execution. "
-                f"Below are representative past performance references demonstrating our "
-                f"capability to deliver services similar to {opp_title}.\n\n"
-                f"Reference 1: Enterprise IT Modernization\n"
-                f"- Agency: Department of Defense\n"
-                f"- Contract Value: $4.2M\n"
-                f"- Period: 2023-2025\n"
-                f"- Scope: End-to-end IT modernization including cloud migration, "
-                f"application development, and cybersecurity implementation\n"
-                f"- Result: Delivered on-time and under budget; CPARS rating: Exceptional\n\n"
-                f"Reference 2: Cybersecurity Operations Support\n"
-                f"- Agency: Department of Homeland Security\n"
-                f"- Contract Value: $2.8M\n"
-                f"- Period: 2022-2024\n"
-                f"- Scope: 24/7 SOC operations, threat intelligence, incident response\n"
-                f"- Result: 99.99% uptime; zero critical security breaches; CPARS: Very Good\n\n"
-                f"Reference 3: Cloud Infrastructure Services\n"
-                f"- Agency: General Services Administration\n"
-                f"- Contract Value: $1.5M\n"
-                f"- Period: 2024-2025\n"
-                f"- Scope: AWS GovCloud migration and managed services\n"
-                f"- Result: 40% cost reduction achieved; CPARS: Exceptional"
-            ),
+            "past_performance": self._build_past_performance_content(vendor, company, opp_title),
             "technical_approach": (
                 f"Technical Approach\n\n"
                 f"1. Understanding of Requirements\n"
@@ -846,8 +1165,16 @@ class AIService:
                     logger.warning("Unknown section requested: %s (skipping)", section_key)
                     continue
                 content = self._generate_demo_section(section_key, vendor, opportunity)
+                # Convert to HTML for rich-text editor
+                if section_key == "cover_page":
+                    content = _cover_page_to_html(content, vendor, opportunity)
+                else:
+                    content = _text_to_html(content, section_key)
+                # Strip leading section title to avoid duplicates in the editor
+                section_title = SECTION_TITLES.get(section_key, section_key.replace("_", " ").title())
+                content = _strip_leading_title(content, section_title)
                 results[section_key] = {
-                    "title": SECTION_TITLES.get(section_key, section_key.replace("_", " ").title()),
+                    "title": section_title,
                     "content": content,
                 }
                 logger.info("Generated demo section: %s", section_key)
@@ -870,8 +1197,16 @@ class AIService:
 
             try:
                 content = self.generate_section(section_prompt)
+                # Convert to HTML for rich-text editor
+                if section_key == "cover_page":
+                    content = _cover_page_to_html(content, vendor, opportunity)
+                else:
+                    content = _text_to_html(content, section_key)
+                # Strip leading section title to avoid duplicates in the editor
+                section_title = SECTION_TITLES.get(section_key, section_key.replace("_", " ").title())
+                content = _strip_leading_title(content, section_title)
                 results[section_key] = {
-                    "title": SECTION_TITLES.get(section_key, section_key.replace("_", " ").title()),
+                    "title": section_title,
                     "content": content,
                 }
                 logger.info("Generated section: %s", section_key)
@@ -985,12 +1320,31 @@ class AIService:
             lines.append("\nPast Performance Records:")
             for i, pp in enumerate(pp_records, 1):
                 if isinstance(pp, dict):
-                    client = pp.get("client_name", "N/A")
-                    title = pp.get("contract_title", "N/A")
+                    name = pp.get("contract_name") or pp.get("client_name", "N/A")
+                    agency = pp.get("agency", "")
+                    contract_num = pp.get("contract_number", "")
+                    value = pp.get("contract_value", "")
+                    staffing = pp.get("staffing_count", "")
+                    start = pp.get("start_year", "")
+                    end = pp.get("end_year", "")
                     desc = pp.get("description", "")
-                    lines.append(f"  {i}. Client: {client} | Contract: {title}")
+                    tags = pp.get("relevance_tags", "")
+                    parts = [f"  {i}. {name}"]
+                    if agency:
+                        parts.append(f"     Agency: {agency}")
+                    if contract_num:
+                        parts.append(f"     Contract #: {contract_num}")
+                    if value:
+                        parts.append(f"     Value: {value}")
+                    if start or end:
+                        parts.append(f"     Period: {start} - {end}")
+                    if staffing:
+                        parts.append(f"     Staffing: {staffing}")
                     if desc:
-                        lines.append(f"     Description: {desc}")
+                        parts.append(f"     Description: {desc}")
+                    if tags:
+                        parts.append(f"     Tags: {tags}")
+                    lines.extend(parts)
 
         # Management team / key personnel
         for team_key, team_label in [

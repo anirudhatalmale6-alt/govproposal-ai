@@ -117,7 +117,24 @@ export default function ProposalGenerator() {
     description: '',
     requirements: '',
     evaluation_criteria: '',
+    // New fields from flow docs
+    proposal_type: 'Technical & Management Proposal',
+    submission_date: '',
+    poc_name: '',
+    poc_title: '',
+    poc_email: '',
+    poc_phone: '',
+    poc_division: '',
   });
+
+  const proposalTypeOptions = [
+    'Technical & Management Proposal',
+    'Technical Proposal',
+    'Management Proposal',
+    'Volume I: Technical Proposal',
+    'Volume II: Management Proposal',
+    'Volume III: Price Proposal',
+  ];
 
   // Step 3 — Selected sections
   const [selectedSections, setSelectedSections] = useState(
@@ -849,6 +866,81 @@ export default function ProposalGenerator() {
                 rows={3}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all resize-y"
               />
+            </div>
+
+            {/* Proposal Type & Submission Date */}
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              <h3 className="text-sm font-semibold text-navy mb-3">Proposal Format</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Proposal Type</label>
+                  <select
+                    value={opportunity.proposal_type}
+                    onChange={(e) => handleOpportunityChange('proposal_type', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all bg-white"
+                  >
+                    {proposalTypeOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Submission Date</label>
+                  <input
+                    type="date"
+                    value={opportunity.submission_date}
+                    onChange={(e) => handleOpportunityChange('submission_date', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Point of Contact */}
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              <h3 className="text-sm font-semibold text-navy mb-3">Point of Contact</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+                  <input
+                    type="text"
+                    value={opportunity.poc_name}
+                    onChange={(e) => handleOpportunityChange('poc_name', e.target.value)}
+                    placeholder="e.g., John Smith"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Title / Division</label>
+                  <input
+                    type="text"
+                    value={opportunity.poc_title}
+                    onChange={(e) => handleOpportunityChange('poc_title', e.target.value)}
+                    placeholder="e.g., Federal Contracting Division"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    value={opportunity.poc_email}
+                    onChange={(e) => handleOpportunityChange('poc_email', e.target.value)}
+                    placeholder="e.g., john.smith@company.com"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+                  <input
+                    type="tel"
+                    value={opportunity.poc_phone}
+                    onChange={(e) => handleOpportunityChange('poc_phone', e.target.value)}
+                    placeholder="e.g., (555) 123-4567"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue transition-all"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

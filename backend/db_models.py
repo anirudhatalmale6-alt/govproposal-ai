@@ -139,6 +139,7 @@ class Proposal(Base):
     opportunity_agency = Column(String(500), nullable=False, default="")
     opportunity_description = Column(Text, nullable=False, default="")
     sections = Column(JSON, nullable=False, default=dict)  # Full proposal content
+    proposal_metadata = Column("metadata", JSON, nullable=False, default=dict)  # Cover page metadata
     status = Column(String(20), nullable=False, default="draft")  # "draft" | "completed"
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
@@ -155,6 +156,7 @@ class Proposal(Base):
             "opportunity_agency": self.opportunity_agency,
             "opportunity_description": self.opportunity_description,
             "sections": self.sections or {},
+            "metadata": self.proposal_metadata or {},
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

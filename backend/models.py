@@ -97,6 +97,7 @@ class ProposalResponse(BaseModel):
     sections: Dict[str, ProposalSection] = Field(
         ..., description="Generated sections keyed by section name"
     )
+    metadata: Optional[Dict] = Field(None, description="Cover page metadata (agency, CAGE, POC, etc.)")
 
 
 # --- Export Models ---
@@ -106,4 +107,10 @@ class ExportRequest(BaseModel):
     vendor_name: str = Field("", description="Vendor company name")
     sections: Dict[str, ProposalSection] = Field(
         ..., description="Sections to export, keyed by section name"
+    )
+    metadata: Optional[Dict] = Field(None, description="Extended metadata for cover page (agency, POC, etc.)")
+    company_logo: Optional[str] = Field(None, description="Base64-encoded company logo image (data URL)")
+    volume_assignments: Optional[Dict[str, List[str]]] = Field(
+        None,
+        description="Map of volume name to list of section keys. E.g. {'Volume I - Administrative': ['cover_page', 'executive_summary']}"
     )

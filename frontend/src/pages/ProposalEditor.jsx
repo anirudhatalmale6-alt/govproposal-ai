@@ -42,6 +42,11 @@ import {
   SparklesIcon,
   ChartBarIcon,
   PaintBrushIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  TrophyIcon,
+  ArrowTrendingUpIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js';
 import { Pie, Bar, Line } from 'react-chartjs-2';
@@ -307,6 +312,7 @@ const PROPOSAL_TEMPLATES = [
 function SortableSidebarItem({
   id, isSkipped, isActive, isCostSection, label,
   onToggleInclude, onScrollTo, onDuplicate,
+  isFrozen, onToggleFreeze,
 }) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -344,13 +350,17 @@ function SortableSidebarItem({
         className={`flex-1 text-left px-2 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
           isSkipped
             ? 'text-gray-300 line-through'
-            : isActive
-              ? 'bg-navy text-white shadow-sm'
-              : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
+            : isFrozen
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : isActive
+                ? 'bg-navy text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
         }`}
       >
         <div className="flex items-center gap-1.5">
-          {isCostSection ? (
+          {isFrozen ? (
+            <LockClosedIcon className="w-3.5 h-3.5 flex-shrink-0 text-green-500" />
+          ) : isCostSection ? (
             <CurrencyDollarIcon
               className={`w-3.5 h-3.5 flex-shrink-0 ${
                 isSkipped ? 'text-gray-300' : isActive ? 'text-accent' : 'text-green-400'
@@ -365,6 +375,18 @@ function SortableSidebarItem({
           )}
           <span className="truncate text-xs">{label}</span>
         </div>
+      </button>
+      {/* Freeze / Edit toggle */}
+      <button
+        onClick={onToggleFreeze}
+        className={`p-1 flex-shrink-0 rounded transition-all cursor-pointer ${
+          isFrozen
+            ? 'text-green-500 hover:text-orange-500 hover:bg-orange-50 opacity-100'
+            : 'text-gray-300 hover:text-green-600 hover:bg-green-50 opacity-0 group-hover:opacity-100'
+        }`}
+        title={isFrozen ? 'Click to edit (unfreeze)' : 'Save & freeze this section'}
+      >
+        {isFrozen ? <LockClosedIcon className="w-3.5 h-3.5" /> : <LockOpenIcon className="w-3.5 h-3.5" />}
       </button>
       {/* Duplicate button */}
       <button
@@ -1128,6 +1150,7 @@ export default function ProposalEditor() {
   const [copiedToken, setCopiedToken] = useState(null);
   const [proposalId, setProposalId] = useState(null);
   const [opportunityDetails, setOpportunityDetails] = useState({});
+  const [vendorData, setVendorData] = useState({});
   const [skippedSections, setSkippedSections] = useState(new Set());
   const [regeneratingSection, setRegeneratingSection] = useState(null);
   const [writingTone, setWritingTone] = useState('professional');
@@ -1137,6 +1160,25 @@ export default function ProposalEditor() {
   const [showSectionStyle, setShowSectionStyle] = useState(null);
   const [showChartPicker, setShowChartPicker] = useState(null);
   const [showGraphicsPicker, setShowGraphicsPicker] = useState(null);
+  const [volumeAssignments, setVolumeAssignments] = useState({
+    'Volume I — Administrative': [],
+    'Volume II — Technical': [],
+    'Volume III — Management & Compliance': [],
+  });
+  const [showVolumeEditor, setShowVolumeEditor] = useState(false);
+  const [frozenSections, setFrozenSections] = useState(new Set());
+  const [winProbOpen, setWinProbOpen] = useState(false);
+  const [winProbLoading, setWinProbLoading] = useState(false);
+  const [winProbResult, setWinProbResult] = useState(null);
+
+  const toggleFreezeSection = (key) => {
+    setFrozenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const toggleSectionInclude = (key) => {
     setSkippedSections((prev) => {
@@ -1287,9 +1329,42 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
       if (proposalData.opportunity_title) setProposalTitle(proposalData.opportunity_title);
       if (proposalData.vendor_name) setVendorName(proposalData.vendor_name);
 
-      // Store opportunity details for cover page
+      // Store opportunity details and vendor data for cover page
       if (location.state?.opportunity) {
         setOpportunityDetails(location.state.opportunity);
+      }
+      if (location.state?.vendor) {
+        setVendorData(location.state.vendor);
+      }
+
+      // Also load metadata from the proposal response (persisted data)
+      const meta = proposalData.metadata || {};
+      if (meta.agency || meta.solicitation_number || meta.poc_name) {
+        // Populate opportunityDetails from saved metadata
+        setOpportunityDetails((prev) => ({
+          ...prev,
+          proposal_type: meta.proposal_type || prev.proposal_type || '',
+          agency: meta.agency || prev.agency || '',
+          contracting_office: meta.contracting_office || prev.contracting_office || '',
+          solicitation_number: meta.solicitation_number || prev.solicitation_number || '',
+          submission_date: meta.submission_date || prev.submission_date || '',
+          poc_name: meta.poc_name || prev.poc_name || '',
+          poc_title: meta.poc_title || prev.poc_title || '',
+          poc_email: meta.poc_email || prev.poc_email || '',
+          poc_phone: meta.poc_phone || prev.poc_phone || '',
+        }));
+      }
+      if (meta.cage_code || meta.duns_number || meta.vendor_name) {
+        setVendorData((prev) => ({
+          ...prev,
+          company_name: meta.vendor_name || prev.company_name || '',
+          cage_code: meta.cage_code || prev.cage_code || '',
+          duns_number: meta.duns_number || prev.duns_number || '',
+          naics_codes: meta.naics_codes || prev.naics_codes || [],
+        }));
+        if (!vendorName && meta.vendor_name) {
+          setVendorName(meta.vendor_name);
+        }
       }
 
       const parsed = {};
@@ -1309,6 +1384,56 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
     }
   }, [location.state]);
 
+  // Auto-load vendor profile from API to ensure cover page data is always available
+  useEffect(() => {
+    const loadVendorProfile = async () => {
+      try {
+        const res = await api.get('/api/vendor-profiles');
+        if (res.data?.profiles?.length > 0) {
+          const p = res.data.profiles[0];
+          const mapped = {
+            company_name: p.company_name || '',
+            cage_code: p.cage_code || '',
+            duns_number: p.duns_number || '',
+            naics_codes: Array.isArray(p.naics_codes) ? p.naics_codes : [],
+            capabilities: p.capabilities || '',
+            past_performance: p.past_performance || '',
+            socioeconomic_status: p.socioeconomic_status || '',
+            contact_name: p.contact_info?.name || '',
+            contact_email: p.contact_info?.email || '',
+            contact_phone: p.contact_info?.phone || '',
+            contact_address: p.contact_info?.address || '',
+          };
+          // Only update if vendorData is empty (not already set from navigation state)
+          setVendorData((prev) => {
+            if (prev && prev.company_name) return prev;
+            return { ...prev, ...mapped };
+          });
+          // Also set vendor name if not already set
+          if (!vendorName && mapped.company_name) {
+            setVendorName(mapped.company_name);
+          }
+        }
+      } catch {
+        // API not available — try localStorage fallback
+        try {
+          const saved = localStorage.getItem('vendorProfile');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setVendorData((prev) => {
+              if (prev && prev.company_name) return prev;
+              return { ...prev, ...parsed };
+            });
+            if (!vendorName && parsed.company_name) {
+              setVendorName(parsed.company_name);
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    };
+    loadVendorProfile();
+  }, []);
+
   const handleContentChange = (key, content) => {
     setSections((prev) => ({ ...prev, [key]: content }));
   };
@@ -1318,6 +1443,53 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
     const el = sectionRefs.current[key];
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const analyzeWinProbability = async () => {
+    setWinProbLoading(true);
+    setWinProbOpen(true);
+    try {
+      const includedSections = sectionKeys
+        .filter((k) => !skippedSections.has(k))
+        .map((k) => `${sectionLabels[k] || k}: ${(sections[k] || '').replace(/<[^>]+>/g, '').slice(0, 300)}`)
+        .join('\n\n');
+
+      const prompt = `You are a government proposal evaluator. Analyze this proposal and return a JSON object with these exact keys:
+- "score": integer 0-100 representing win probability percentage
+- "level": one of "Highly Competitive", "Competitive", "Moderate", "Low", "Needs Work"
+- "strengths": array of 2-3 short bullet strings (what's strong)
+- "weaknesses": array of 2-3 short bullet strings (what needs improvement)
+- "recommendation": one sentence of top advice
+
+Proposal title: ${proposalTitle}
+Agency: ${opportunityDetails?.agency || 'Not specified'}
+Sections included: ${sectionKeys.filter((k) => !skippedSections.has(k)).length}
+
+Section summaries:
+${includedSections}
+
+Return ONLY valid JSON, no markdown fences.`;
+
+      const res = await api.post('/api/proposals/generate-section', { prompt });
+      const text = res.data?.content || '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setWinProbResult({
+          score: Math.min(100, Math.max(0, parsed.score || 0)),
+          level: parsed.level || 'Unknown',
+          strengths: parsed.strengths || [],
+          weaknesses: parsed.weaknesses || [],
+          recommendation: parsed.recommendation || '',
+        });
+      } else {
+        setWinProbResult({ score: 50, level: 'Moderate', strengths: ['Analysis completed'], weaknesses: ['Could not parse detailed results'], recommendation: 'Review proposal sections for completeness.' });
+      }
+    } catch (err) {
+      setWinProbResult({ score: 0, level: 'Error', strengths: [], weaknesses: ['AI analysis failed — check backend connection'], recommendation: 'Ensure the backend is running and try again.' });
+    } finally {
+      setWinProbLoading(false);
     }
   };
 
@@ -1380,6 +1552,22 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
         proposal_title: proposalTitle,
         vendor_name: vendorName,
         sections: exportSections,
+        company_logo: companyLogo || '',
+        metadata: {
+          proposal_type: opportunityDetails?.proposal_type || 'Government Contract Proposal',
+          agency: opportunityDetails?.agency || '',
+          contracting_office: opportunityDetails?.contracting_office || '',
+          solicitation_number: opportunityDetails?.solicitation_number || '',
+          submission_date: opportunityDetails?.submission_date || '',
+          cage_code: vendorData?.cage_code || '',
+          duns_number: vendorData?.duns_number || '',
+          naics_codes: vendorData?.naics_codes || [],
+          poc_name: opportunityDetails?.poc_name || '',
+          poc_title: opportunityDetails?.poc_title || '',
+          poc_email: opportunityDetails?.poc_email || '',
+          poc_phone: opportunityDetails?.poc_phone || '',
+        },
+        volume_assignments: Object.values(volumeAssignments).some(v => v.length > 0) ? volumeAssignments : null,
       };
 
       const response = await api.post(`/api/export/${format}`, payload, {
@@ -1579,8 +1767,135 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
             )}
             Export DOCX
           </button>
+          <button
+            onClick={() => setShowVolumeEditor(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 transition-all cursor-pointer"
+          >
+            <RectangleStackIcon className="w-4 h-4" />
+            Volume Setup
+          </button>
         </div>
       </div>
+
+      {/* Volume Assignment Modal */}
+      {showVolumeEditor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Volume Assignment</h3>
+              <button onClick={() => setShowVolumeEditor(false)} className="p-1 hover:bg-gray-100 rounded-lg cursor-pointer">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Drag sections to assign them to volumes. Unassigned sections will auto-group.</p>
+
+            {Object.entries(volumeAssignments).map(([volName, volSections]) => (
+              <div key={volName} className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    className="text-sm font-semibold text-navy bg-transparent border-b border-dashed border-gray-300 focus:border-navy outline-none flex-1 py-1"
+                    value={volName}
+                    onChange={(e) => {
+                      const newAssignments = { ...volumeAssignments };
+                      const sections = newAssignments[volName];
+                      delete newAssignments[volName];
+                      newAssignments[e.target.value] = sections;
+                      setVolumeAssignments(newAssignments);
+                    }}
+                  />
+                  <span className="text-xs text-gray-400">{volSections.length} sections</span>
+                </div>
+                <div className="min-h-[40px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-2 space-y-1">
+                  {volSections.map((sKey) => (
+                    <div key={sKey} className="flex items-center justify-between bg-white px-3 py-1.5 rounded border text-sm">
+                      <span>{sectionTitles[sKey] || sectionLabels[sKey] || sKey}</span>
+                      <button
+                        onClick={() => {
+                          setVolumeAssignments(prev => ({
+                            ...prev,
+                            [volName]: prev[volName].filter(k => k !== sKey),
+                          }));
+                        }}
+                        className="text-red-400 hover:text-red-600 cursor-pointer"
+                      >
+                        <XCircleIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {volSections.length === 0 && (
+                    <p className="text-xs text-gray-400 text-center py-1">No sections assigned</p>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Add volume button */}
+            <button
+              onClick={() => {
+                const num = Object.keys(volumeAssignments).length + 1;
+                setVolumeAssignments(prev => ({
+                  ...prev,
+                  [`Volume ${num}`]: [],
+                }));
+              }}
+              className="text-sm text-accent hover:text-accent-light flex items-center gap-1 mb-4 cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4" /> Add Volume
+            </button>
+
+            {/* Unassigned sections */}
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-semibold text-gray-600 mb-2">Available Sections</h4>
+              <div className="flex flex-wrap gap-2">
+                {sectionKeys.filter(k => !skippedSections.has(k) && !Object.values(volumeAssignments).flat().includes(k)).map((sKey) => (
+                  <div key={sKey} className="group relative">
+                    <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm border border-blue-200">
+                      {sectionTitles[sKey] || sectionLabels[sKey] || sKey}
+                    </div>
+                    <div className="absolute top-full left-0 mt-1 hidden group-hover:flex flex-col bg-white shadow-lg rounded-lg border z-10 min-w-[160px]">
+                      {Object.keys(volumeAssignments).map((vn) => (
+                        <button
+                          key={vn}
+                          onClick={() => {
+                            setVolumeAssignments(prev => ({
+                              ...prev,
+                              [vn]: [...prev[vn], sKey],
+                            }));
+                          }}
+                          className="text-left px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer"
+                        >
+                          Add to {vn}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setVolumeAssignments({
+                    'Volume I — Administrative': [],
+                    'Volume II — Technical': [],
+                    'Volume III — Management & Compliance': [],
+                  });
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer"
+              >
+                Reset to Default
+              </button>
+              <button
+                onClick={() => setShowVolumeEditor(false)}
+                className="px-4 py-2 text-sm bg-navy text-white rounded-lg hover:bg-navy-light cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex">
         {/* Section Sidebar */}
@@ -1652,11 +1967,141 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                       onToggleInclude={() => toggleSectionInclude(key)}
                       onScrollTo={() => scrollToSection(key)}
                       onDuplicate={() => handleDuplicateSection(key)}
+                      isFrozen={frozenSections.has(key)}
+                      onToggleFreeze={() => toggleFreezeSection(key)}
                     />
                   ))}
                 </nav>
               </SortableContext>
             </DndContext>
+
+            {/* ─── Win Probability Panel ─────────────────── */}
+            <div className="mt-4 border-t border-gray-200 pt-3">
+              <button
+                onClick={() => { if (!winProbResult && !winProbLoading) analyzeWinProbability(); else setWinProbOpen(!winProbOpen); }}
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm font-semibold text-navy hover:bg-navy/5 transition-colors cursor-pointer"
+              >
+                <TrophyIcon className="w-4 h-4 text-amber-500" />
+                <span className="flex-1 text-left text-xs">Win Probability</span>
+                {winProbResult && (
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                    winProbResult.score >= 75 ? 'bg-emerald-100 text-emerald-700'
+                    : winProbResult.score >= 50 ? 'bg-green-100 text-green-700'
+                    : winProbResult.score >= 35 ? 'bg-amber-100 text-amber-700'
+                    : 'bg-red-100 text-red-700'
+                  }`}>
+                    {winProbResult.score}%
+                  </span>
+                )}
+                {winProbLoading && (
+                  <svg className="animate-spin w-3.5 h-3.5 text-navy" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+              </button>
+
+              {winProbOpen && (
+                <div className="mt-2 px-1">
+                  {winProbLoading && !winProbResult && (
+                    <div className="text-center py-4">
+                      <svg className="animate-spin w-6 h-6 text-navy mx-auto mb-2" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <p className="text-xs text-gray-400">AI analyzing proposal...</p>
+                    </div>
+                  )}
+
+                  {winProbResult && (
+                    <div className="space-y-3">
+                      {/* Score Gauge */}
+                      <div className="flex flex-col items-center py-2">
+                        <div className="relative w-20 h-20">
+                          <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none" stroke="#e5e7eb" strokeWidth="3"
+                            />
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke={winProbResult.score >= 75 ? '#10b981' : winProbResult.score >= 50 ? '#22c55e' : winProbResult.score >= 35 ? '#f59e0b' : '#ef4444'}
+                              strokeWidth="3"
+                              strokeDasharray={`${winProbResult.score}, 100`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-lg font-bold text-navy">{winProbResult.score}%</span>
+                          </div>
+                        </div>
+                        <span className={`text-xs font-semibold mt-1 ${
+                          winProbResult.score >= 75 ? 'text-emerald-600'
+                          : winProbResult.score >= 50 ? 'text-green-600'
+                          : winProbResult.score >= 35 ? 'text-amber-600'
+                          : 'text-red-600'
+                        }`}>{winProbResult.level}</span>
+                      </div>
+
+                      {/* Strengths */}
+                      {winProbResult.strengths.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wider mb-1">Strengths</p>
+                          <ul className="space-y-0.5">
+                            {winProbResult.strengths.map((s, i) => (
+                              <li key={i} className="text-[11px] text-gray-600 flex items-start gap-1">
+                                <ArrowTrendingUpIcon className="w-3 h-3 text-green-500 flex-shrink-0 mt-0.5" />
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Weaknesses */}
+                      {winProbResult.weaknesses.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-1">Improve</p>
+                          <ul className="space-y-0.5">
+                            {winProbResult.weaknesses.map((w, i) => (
+                              <li key={i} className="text-[11px] text-gray-600 flex items-start gap-1">
+                                <ExclamationTriangleIcon className="w-3 h-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                                <span>{w}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Recommendation */}
+                      {winProbResult.recommendation && (
+                        <div className="bg-blue-50 rounded-lg p-2">
+                          <p className="text-[11px] text-blue-700 leading-relaxed">{winProbResult.recommendation}</p>
+                        </div>
+                      )}
+
+                      {/* Re-analyze button */}
+                      <button
+                        onClick={analyzeWinProbability}
+                        disabled={winProbLoading}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-navy bg-navy/5 hover:bg-navy/10 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {winProbLoading ? (
+                          <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <SparklesIcon className="w-3 h-3" />
+                        )}
+                        {winProbLoading ? 'Analyzing...' : 'Re-analyze'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </aside>
 
@@ -2000,13 +2445,34 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                     {sectionLabels[key] || key}
                   </h2>
                   <div className="ml-auto flex items-center gap-1.5">
+                    {/* Save & Freeze / Edit toggle */}
+                    <button
+                      onClick={() => toggleFreezeSection(key)}
+                      className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        frozenSections.has(key)
+                          ? 'text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200'
+                          : 'text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 border border-green-200'
+                      }`}
+                      title={frozenSections.has(key) ? 'Unfreeze to edit this section' : 'Save and freeze this section'}
+                    >
+                      {frozenSections.has(key) ? (
+                        <><PencilSquareIcon className="w-3.5 h-3.5" /> Edit</>
+                      ) : (
+                        <><LockOpenIcon className="w-3.5 h-3.5" /> Save &amp; Freeze</>
+                      )}
+                    </button>
+                    {frozenSections.has(key) && (
+                      <span className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                        <LockClosedIcon className="w-3 h-3" /> Frozen
+                      </span>
+                    )}
                     {key === 'cost_price_proposal' && (
                       <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
                         Interactive Pricing
                       </span>
                     )}
                     {/* AI Regenerate */}
-                    {key !== 'cost_price_proposal' && (
+                    {key !== 'cost_price_proposal' && !frozenSections.has(key) && (
                       <button
                         onClick={() => handleRegenerateSection(key)}
                         disabled={!!regeneratingSection}
@@ -2025,7 +2491,7 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                       </button>
                     )}
                     {/* Insert Chart */}
-                    {key !== 'cost_price_proposal' && (
+                    {key !== 'cost_price_proposal' && !frozenSections.has(key) && (
                       <div className="relative">
                         <button
                           onClick={() => setShowChartPicker(showChartPicker === key ? null : key)}
@@ -2052,7 +2518,7 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                       </div>
                     )}
                     {/* Insert Graphics */}
-                    {key !== 'cost_price_proposal' && (
+                    {key !== 'cost_price_proposal' && !frozenSections.has(key) && (
                       <div className="relative">
                         <button
                           onClick={() => setShowGraphicsPicker(showGraphicsPicker === key ? null : key)}
@@ -2084,6 +2550,7 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                       </div>
                     )}
                     {/* Section Style */}
+                    {!frozenSections.has(key) && (
                     <button
                       onClick={() => setShowSectionStyle(showSectionStyle === key ? null : key)}
                       className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-all cursor-pointer ${
@@ -2096,6 +2563,7 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                       <PaintBrushIcon className="w-3 h-3" />
                       Style
                     </button>
+                    )}
                   </div>
                 </div>
                 {/* Per-section style panel */}
@@ -2159,7 +2627,17 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                   </div>
                 )}
                 <div className="p-4">
-                  {key === 'cost_price_proposal' ? (
+                  {frozenSections.has(key) ? (
+                    <div className="relative">
+                      <div className="absolute top-2 right-2 flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-md border border-green-200">
+                        <LockClosedIcon className="w-3 h-3" /> Saved &amp; Frozen
+                      </div>
+                      <div
+                        className="prose prose-sm max-w-none text-gray-700 leading-relaxed pt-2"
+                        dangerouslySetInnerHTML={{ __html: sections[key] || '<p class="text-gray-400 italic">No content yet</p>' }}
+                      />
+                    </div>
+                  ) : key === 'cost_price_proposal' ? (
                     <PricingTable
                       onContentUpdate={(html) => handleContentChange(key, html)}
                       contractType={opportunityDetails?.contract_type || ''}
@@ -2176,7 +2654,7 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                   )}
                 </div>
                 {/* Image upload area for each section */}
-                <SectionImageUpload
+                {!frozenSections.has(key) && <SectionImageUpload
                   sectionKey={key}
                   onImageInsert={(imageUrl) => {
                     if (key === 'cost_price_proposal') return;
@@ -2188,7 +2666,7 @@ Write the "${sectionLabels[key] || key}" section in rich HTML format with proper
                       quill.setSelection(pos + 1);
                     }
                   }}
-                />
+                />}
               </div>
             ))}
           </div>
