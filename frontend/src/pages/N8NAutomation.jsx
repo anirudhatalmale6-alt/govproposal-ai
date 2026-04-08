@@ -49,6 +49,13 @@ export default function N8NAutomation() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // Opportunity selection state
+  const [opportunities, setOpportunities] = useState([]);
+  const [oppLoading, setOppLoading] = useState(false);
+  const [oppSearch, setOppSearch] = useState('');
+  const [selectedOpp, setSelectedOpp] = useState(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
@@ -68,6 +75,51 @@ export default function N8NAutomation() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load profile data (company name, NAICS) and opportunities when proposal form opens
+  const loadProposalFormData = async () => {
+    // Load vendor profile for company name & NAICS
+    if (!profileLoaded) {
+      try {
+        const profileRes = await api.get('/api/vendor-profile');
+        if (profileRes.data) {
+          const profile = profileRes.data;
+          setFormData(prev => ({
+            ...prev,
+            company_name: profile.company_name || prev.company_name,
+            naics_code: (profile.naics_codes && profile.naics_codes.length > 0)
+              ? profile.naics_codes[0]
+              : prev.naics_code,
+          }));
+          setProfileLoaded(true);
+        }
+      } catch (err) {
+        console.log('Could not load vendor profile:', err);
+      }
+    }
+
+    // Load opportunities
+    if (opportunities.length === 0) {
+      setOppLoading(true);
+      try {
+        const oppRes = await api.get('/api/opportunities', { params: { limit: 50, source: 'all' } });
+        setOpportunities(oppRes.data?.opportunities || oppRes.data || []);
+      } catch (err) {
+        console.log('Could not load opportunities:', err);
+      } finally {
+        setOppLoading(false);
+      }
+    }
+  };
+
+  const handleSelectOpportunity = (opp) => {
+    setSelectedOpp(opp);
+    setFormData(prev => ({
+      ...prev,
+      agency: opp.agency || prev.agency,
+      scope: opp.description || opp.requirements || prev.scope,
+    }));
   };
 
   const handleTrigger = async (workflowType) => {
@@ -285,34 +337,121 @@ export default function N8NAutomation() {
                     <div className="space-y-2 mb-3">
                       {wf.id === 'proposal_generation' && (
                         <>
-                          <input
-                            type="text"
-                            placeholder="Company Name"
-                            value={formData.company_name}
-                            onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30"
-                          />
-                          <input
-                            type="text"
-                            placeholder="NAICS Code (e.g. 541511)"
-                            value={formData.naics_code}
-                            onChange={(e) => setFormData({ ...formData, naics_code: e.target.value })}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Target Agency"
-                            value={formData.agency}
-                            onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Scope of Work"
-                            value={formData.scope}
-                            onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30"
-                          />
+                          {/* Company Name - synced from Business Profile */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Company Name</label>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                placeholder="Company Name"
+                                value={formData.company_name}
+                                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30"
+                              />
+                              {profileLoaded && <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" title="Synced from Business Profile" />}
+                            </div>
+                          </div>
+
+                          {/* NAICS Code - synced from Business Profile */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">NAICS Code</label>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                placeholder="NAICS Code (e.g. 541511)"
+                                value={formData.naics_code}
+                                onChange={(e) => setFormData({ ...formData, naics_code: e.target.value })}
+                                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30"
+                              />
+                              {profileLoaded && <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" title="Synced from Business Profile" />}
+                            </div>
+                          </div>
+
+                          {/* Opportunity Selector Table */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Select Opportunity</label>
+                            <input
+                              type="text"
+                              placeholder="Search opportunities..."
+                              value={oppSearch}
+                              onChange={(e) => setOppSearch(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 mb-1"
+                            />
+                            <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+                              {oppLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-400" />
+                                  <span className="text-xs text-gray-400 ml-2">Loading opportunities...</span>
+                                </div>
+                              ) : opportunities.length === 0 ? (
+                                <div className="text-center py-4">
+                                  <p className="text-xs text-gray-400">No opportunities found</p>
+                                </div>
+                              ) : (
+                                <table className="w-full text-xs">
+                                  <thead className="bg-gray-50 sticky top-0">
+                                    <tr>
+                                      <th className="text-left px-2 py-1.5 font-medium text-gray-500">Title</th>
+                                      <th className="text-left px-2 py-1.5 font-medium text-gray-500">Agency</th>
+                                      <th className="text-left px-2 py-1.5 font-medium text-gray-500">Due</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-100">
+                                    {opportunities
+                                      .filter(o => !oppSearch || (o.title || '').toLowerCase().includes(oppSearch.toLowerCase()) || (o.agency || '').toLowerCase().includes(oppSearch.toLowerCase()))
+                                      .slice(0, 20)
+                                      .map((opp, idx) => (
+                                        <tr
+                                          key={opp.notice_id || idx}
+                                          onClick={() => handleSelectOpportunity(opp)}
+                                          className={`cursor-pointer hover:bg-blue-50 transition-colors ${selectedOpp === opp ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : ''}`}
+                                        >
+                                          <td className="px-2 py-1.5 max-w-[140px] truncate" title={opp.title}>{opp.title}</td>
+                                          <td className="px-2 py-1.5 max-w-[90px] truncate text-gray-500" title={opp.agency}>{opp.agency}</td>
+                                          <td className="px-2 py-1.5 text-gray-400 whitespace-nowrap">{opp.due_date ? new Date(opp.due_date).toLocaleDateString() : '-'}</td>
+                                        </tr>
+                                      ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                            {selectedOpp && (
+                              <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600">
+                                <CheckCircleIcon className="w-3 h-3" />
+                                Selected: {selectedOpp.title?.substring(0, 40)}{selectedOpp.title?.length > 40 ? '...' : ''}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Agency - auto-filled from selected opportunity */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Target Agency</label>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                placeholder="Target Agency"
+                                value={formData.agency}
+                                onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
+                                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30"
+                              />
+                              {selectedOpp && <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" title="From selected opportunity" />}
+                            </div>
+                          </div>
+
+                          {/* Scope of Work - auto-filled from selected opportunity */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Scope of Work</label>
+                            <div className="flex items-center gap-1">
+                              <textarea
+                                placeholder="Scope of Work"
+                                value={formData.scope}
+                                onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
+                                rows={3}
+                                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 resize-none"
+                              />
+                              {selectedOpp && <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" title="From selected opportunity" />}
+                            </div>
+                          </div>
                         </>
                       )}
                       <div className="flex gap-2">
@@ -328,7 +467,7 @@ export default function N8NAutomation() {
                           )}
                         </button>
                         <button
-                          onClick={() => setTriggerForm(null)}
+                          onClick={() => { setTriggerForm(null); setSelectedOpp(null); }}
                           className="px-3 py-2 text-gray-400 hover:text-gray-600 text-sm cursor-pointer"
                         >
                           Cancel
@@ -337,7 +476,10 @@ export default function N8NAutomation() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setTriggerForm(wf.id)}
+                      onClick={() => {
+                        setTriggerForm(wf.id);
+                        if (wf.id === 'proposal_generation') loadProposalFormData();
+                      }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-navy hover:bg-navy-light text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
                     >
                       <PlayIcon className="w-4 h-4" />
