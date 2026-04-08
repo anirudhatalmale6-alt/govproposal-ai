@@ -163,7 +163,7 @@ export default function N8NAutomation() {
         <div>
           <h1 className="text-3xl font-bold text-navy flex items-center gap-3">
             <BoltIcon className="w-8 h-8 text-amber-500" />
-            N8N Automation
+            Workflow Automation
           </h1>
           <p className="text-gray-500 mt-1">Trigger AI-powered workflows for proposals, compliance checks, and gap analysis</p>
         </div>

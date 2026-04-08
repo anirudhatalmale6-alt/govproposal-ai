@@ -55,7 +55,7 @@ export default function ComplianceRequirements() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy">Compliance Requirements</h1>
+        <h1 className="text-3xl font-bold text-navy">Regulatory Requirements</h1>
         <p className="text-gray-500 mt-1">Browse all GovCon compliance requirements by category</p>
       </div>
 

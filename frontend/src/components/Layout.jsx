@@ -37,14 +37,14 @@ import { useAuth } from '../context/AuthContext';
 const topNavTabs = [
   { label: 'Dashboard', path: '/dashboard', icon: HomeIcon },
   { label: 'Opportunities', path: '/opportunities', icon: MagnifyingGlassIcon },
-  { label: 'Proposal', path: '/new-proposal', icon: DocumentTextIcon },
-  { label: 'Market Research', path: '/market-research', icon: ChartBarIcon },
-  { label: 'Knowledgebase', path: '/knowledgebase', icon: FolderOpenIcon },
+  { label: 'Proposal Builder', path: '/new-proposal', icon: DocumentTextIcon },
+  { label: 'Market Intelligence', path: '/market-research', icon: ChartBarIcon },
+  { label: 'Knowledge Hub', path: '/knowledgebase', icon: FolderOpenIcon },
   { label: 'Past Performance', path: '/past-performance', icon: TrophyIcon },
-  { label: 'Expertise', path: '/expertise', icon: AcademicCapIcon },
+  { label: 'Capabilities', path: '/expertise', icon: AcademicCapIcon },
   { label: 'Compliance', path: '/compliance', icon: ClipboardDocumentCheckIcon },
-  { label: 'N8N Automation', path: '/n8n', icon: Cog6ToothIcon },
-  { label: 'Business Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
+  { label: 'Workflow Automation', path: '/n8n', icon: Cog6ToothIcon },
+  { label: 'Company Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
 ];
 
 // Context-based sidebar items — changes based on active top tab
@@ -55,13 +55,13 @@ const sidebarContextMap = {
     { label: 'Billing', path: '/billing', icon: CreditCardIcon },
   ],
   '/vendor-profile': [
-    { label: 'Organization Details', path: '/vendor-profile', icon: BuildingOffice2Icon },
-    { label: 'Business Classification', path: '/vendor-profile?section=classification', icon: BriefcaseIcon },
-    { label: 'Certifications', path: '/vendor-profile?section=certifications', icon: ShieldCheckIcon },
-    { label: 'Contract Vehicles', path: '/vendor-profile?section=contracts', icon: DocumentTextIcon },
+    { label: 'Company Overview', path: '/vendor-profile', icon: BuildingOffice2Icon },
+    { label: 'Business Classifications', path: '/vendor-profile?section=classification', icon: BriefcaseIcon },
+    { label: 'Certifications & Credentials', path: '/vendor-profile?section=certifications', icon: ShieldCheckIcon },
+    { label: 'Contract Vehicles & GWACs', path: '/vendor-profile?section=contracts', icon: DocumentTextIcon },
     { label: 'Government Registrations', path: '/vendor-profile?section=registrations', icon: GlobeAltIcon },
-    { label: 'Contact Details', path: '/vendor-profile?section=contact', icon: UserCircleIcon },
-    { label: 'About Organization', path: '/vendor-profile?section=about', icon: SparklesIcon },
+    { label: 'Contact Information', path: '/vendor-profile?section=contact', icon: UserCircleIcon },
+    { label: 'Company Description', path: '/vendor-profile?section=about', icon: SparklesIcon },
   ],
   '/expertise': [
     { label: 'Management Team', path: '/expertise', icon: UserGroupIcon },
@@ -85,17 +85,17 @@ const sidebarContextMap = {
     { label: 'Competitor Directory', path: '/knowledgebase?section=directory', icon: UserGroupIcon },
   ],
   '/past-performance': [
-    { label: 'Past Performance', path: '/past-performance', icon: TrophyIcon },
+    { label: 'Past Performance Repository', path: '/past-performance', icon: TrophyIcon },
     { label: 'Capability Statement', path: '/past-performance?section=capability', icon: PencilSquareIcon },
     { label: 'Capability Examples', path: '/past-performance?section=examples', icon: SparklesIcon },
   ],
   '/compliance': [
     { label: 'Compliance Dashboard', path: '/compliance', icon: ClipboardDocumentCheckIcon },
-    { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
+    { label: 'Compliance Framework', path: '/compliance-matrix', icon: TableCellsIcon },
     { label: 'NAICS Explorer', path: '/compliance/naics', icon: TagIcon },
-    { label: 'Requirements', path: '/compliance/requirements', icon: ShieldCheckIcon },
-    { label: 'Contract Vehicles', path: '/compliance/vehicles', icon: TruckIcon },
-    { label: 'My Company', path: '/compliance/company', icon: BuildingOffice2Icon },
+    { label: 'Regulatory Requirements', path: '/compliance/requirements', icon: ShieldCheckIcon },
+    { label: 'Contract Vehicles & GWACs', path: '/compliance/vehicles', icon: TruckIcon },
+    { label: 'Company Compliance', path: '/compliance/company', icon: BuildingOffice2Icon },
     { label: 'AI Recommendations', path: '/compliance/recommendations', icon: SparklesIcon },
   ],
   '/new-proposal': [
@@ -107,7 +107,7 @@ const sidebarContextMap = {
     { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },
   ],
   '/n8n': [
-    { label: 'Automation Hub', path: '/n8n', icon: Cog6ToothIcon },
+    { label: 'Workflow Automation', path: '/n8n', icon: Cog6ToothIcon },
   ],
 };
 

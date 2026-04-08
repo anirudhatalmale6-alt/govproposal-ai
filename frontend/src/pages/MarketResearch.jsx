@@ -1214,7 +1214,7 @@ export default function MarketResearch() {
             <ChartBarIcon className="w-6 h-6 text-accent" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-navy">Market Research & Pricing</h1>
+            <h1 className="text-3xl font-bold text-navy">Market Intelligence</h1>
             <p className="text-gray-500 mt-0.5">
               Intelligence-driven labor rates, competitor analysis, and AI-powered pricing strategies
             </p>

@@ -74,7 +74,7 @@ export default function Knowledgebase() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-navy">Knowledgebase</h1>
+        <h1 className="text-2xl font-bold text-navy">Knowledge Hub</h1>
         <p className="text-gray-500 text-sm mt-1">
           Search competitor awards and analyze last 1 year of government contract data
         </p>

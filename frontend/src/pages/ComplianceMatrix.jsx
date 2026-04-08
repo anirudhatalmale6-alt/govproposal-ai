@@ -291,7 +291,7 @@ export default function ComplianceMatrix() {
     <div className="max-w-[1400px] mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Compliance Matrix</h1>
+          <h1 className="text-2xl font-bold text-navy">Compliance Framework</h1>
           <p className="text-sm text-gray-500 mt-1">Track FAR/RFP requirements and compliance status</p>
         </div>
         <div className="flex items-center gap-2">

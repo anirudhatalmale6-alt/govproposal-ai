@@ -143,7 +143,7 @@ export default function PastPerformance() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Past Performance & Capabilities</h1>
+          <h1 className="text-2xl font-bold text-navy">Past Performance Repository</h1>
           <p className="text-gray-500 text-sm mt-1">Showcase your track record and capabilities for government proposals</p>
         </div>
         <button

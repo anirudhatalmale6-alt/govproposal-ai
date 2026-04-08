@@ -99,7 +99,7 @@ export default function ContractVehicles() {
     <div className="max-w-7xl mx-auto">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-navy">Contract Vehicles</h1>
+          <h1 className="text-3xl font-bold text-navy">Contract Vehicles & GWACs</h1>
           <p className="text-gray-500 mt-1">Explore government contract vehicles and their requirements</p>
         </div>
         <button

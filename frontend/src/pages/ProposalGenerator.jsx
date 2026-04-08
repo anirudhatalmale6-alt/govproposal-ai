@@ -384,7 +384,7 @@ export default function ProposalGenerator() {
     <div className="max-w-4xl mx-auto">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy">New Proposal</h1>
+        <h1 className="text-3xl font-bold text-navy">Proposal Builder</h1>
         <p className="text-gray-500 mt-1">
           Generate an AI-powered government proposal in three easy steps
         </p>

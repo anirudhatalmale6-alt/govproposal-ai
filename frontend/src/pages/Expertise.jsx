@@ -90,7 +90,7 @@ export default function Expertise() {
         onChange={onFileSelected}
       />
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-navy">Team Expertise</h1>
+        <h1 className="text-2xl font-bold text-navy">Capabilities</h1>
         <p className="text-gray-500 text-sm mt-1">
           Manage your organization's key personnel and team structure
         </p>
