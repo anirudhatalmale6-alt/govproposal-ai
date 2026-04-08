@@ -68,4 +68,15 @@ export const getRecommendations = () => api.get('/api/compliance/company/recomme
 export const runProposalComplianceCheck = (proposalId) => api.post(`/api/compliance/proposal/${proposalId}/check`);
 export const getProposalComplianceCheck = (proposalId) => api.get(`/api/compliance/proposal/${proposalId}/check`);
 
+// N8N Automation
+export const getN8NWorkflows = () => api.get('/api/n8n/workflows');
+export const getN8NRuns = (limit = 20) => api.get('/api/n8n/runs', { params: { limit } });
+export const getN8NRunDetails = (runId) => api.get(`/api/n8n/runs/${runId}`);
+export const triggerN8NWorkflow = (data) => api.post('/api/n8n/trigger', data);
+export const deleteN8NRun = (runId) => api.delete(`/api/n8n/runs/${runId}`);
+export const getN8NSettings = () => api.get('/api/n8n/settings');
+export const updateN8NSettings = (data) => api.put('/api/n8n/settings', data);
+export const exportN8NWorkflow = (type) => api.get(`/api/n8n/workflows/${type}/export`);
+export const n8nWebhookCallback = (data) => api.post('/api/n8n/webhook', data);
+
 export default api;

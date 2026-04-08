@@ -66,6 +66,6 @@ async def create_tables():
             NAICSCode, ComplianceRequirement, NAICSComplianceMap, Agency,
             ContractVehicle, NAICSContractMap, ContractComplianceMap, Company,
             CompanyNAICS, CompanyCompliance, Opportunity, ProposalComplianceCheck,
-            AIRule, AIRecommendation,
+            AIRule, AIRecommendation, N8NWorkflowRun,
         )
         await conn.run_sync(Base.metadata.create_all)

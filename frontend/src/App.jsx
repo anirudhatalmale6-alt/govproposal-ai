@@ -34,6 +34,7 @@ import ComplianceRequirements from './pages/ComplianceRequirements';
 import ContractVehicles from './pages/ContractVehicles';
 import CompanyCompliance from './pages/CompanyCompliance';
 import ComplianceRecommendations from './pages/ComplianceRecommendations';
+import N8NAutomation from './pages/N8NAutomation';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -190,6 +191,7 @@ function AppRoutes() {
         <Route path="/compliance/vehicles" element={<ContractVehicles />} />
         <Route path="/compliance/company" element={<CompanyCompliance />} />
         <Route path="/compliance/recommendations" element={<ComplianceRecommendations />} />
+        <Route path="/n8n" element={<N8NAutomation />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />

@@ -44,6 +44,7 @@ const topNavTabs = [
   { label: 'Expertise', path: '/expertise', icon: AcademicCapIcon },
   { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
   { label: 'Compliance', path: '/compliance', icon: ClipboardDocumentCheckIcon },
+  { label: 'N8N Automation', path: '/n8n', icon: Cog6ToothIcon },
   { label: 'Business Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
 ];
 
@@ -107,6 +108,9 @@ const sidebarContextMap = {
     { label: 'Proposal Editor', path: '/proposal-editor', icon: PencilSquareIcon },
     { label: 'Win Probability', path: '/win-probability', icon: TrophyIcon },
     { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },
+  ],
+  '/n8n': [
+    { label: 'Automation Hub', path: '/n8n', icon: Cog6ToothIcon },
   ],
 };
 

@@ -574,3 +574,24 @@ class AIRecommendation(Base):
     score = Column(Integer)
     reason = Column(Text)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+
+# ── N8N Workflow Integration ──────────────────────────────────────────
+
+class N8NWorkflowRun(Base):
+    __tablename__ = "n8n_workflow_runs"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    workflow_type = Column(String(50), nullable=False)  # proposal_generation, compliance_check, gap_analysis
+    status = Column(String(20), default="pending")  # pending, running, completed, failed
+    input_data = Column(Text)  # JSON
+    result_data = Column(Text)  # JSON
+    error_message = Column(Text)
+    n8n_execution_id = Column(String(255))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    user = relationship("User")

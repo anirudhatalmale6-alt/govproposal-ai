@@ -42,6 +42,7 @@ from services.auth_service import (
 )
 from routes.auth import router as auth_router
 from routes.compliance import router as compliance_router
+from routes.n8n import router as n8n_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -80,6 +81,7 @@ app.add_middleware(
 # Include auth routes
 app.include_router(auth_router)
 app.include_router(compliance_router, prefix="/api/compliance", tags=["Compliance"])
+app.include_router(n8n_router, prefix="/api/n8n", tags=["N8N Automation"])
 
 # Initialize services
 ai_service = AIService()
