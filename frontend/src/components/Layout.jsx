@@ -27,6 +27,9 @@ import {
   SparklesIcon,
   PencilSquareIcon,
   Cog6ToothIcon,
+  ClipboardDocumentCheckIcon,
+  TruckIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -40,6 +43,7 @@ const topNavTabs = [
   { label: 'Past Performance', path: '/past-performance', icon: TrophyIcon },
   { label: 'Expertise', path: '/expertise', icon: AcademicCapIcon },
   { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
+  { label: 'Compliance', path: '/compliance', icon: ClipboardDocumentCheckIcon },
   { label: 'Business Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
 ];
 
@@ -88,6 +92,14 @@ const sidebarContextMap = {
   '/compliance-matrix': [
     { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
   ],
+  '/compliance': [
+    { label: 'Compliance Dashboard', path: '/compliance', icon: ClipboardDocumentCheckIcon },
+    { label: 'NAICS Explorer', path: '/compliance/naics', icon: TagIcon },
+    { label: 'Requirements', path: '/compliance/requirements', icon: ShieldCheckIcon },
+    { label: 'Contract Vehicles', path: '/compliance/vehicles', icon: TruckIcon },
+    { label: 'My Company', path: '/compliance/company', icon: BuildingOffice2Icon },
+    { label: 'AI Recommendations', path: '/compliance/recommendations', icon: SparklesIcon },
+  ],
   '/new-proposal': [
     { label: 'New Proposal', path: '/new-proposal', icon: DocumentPlusIcon },
     { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
@@ -125,6 +137,7 @@ export default function Layout() {
     if (tab.path === '/opportunities') return currentPath === '/opportunities' || currentPath === '/rfp-deconstructor';
     if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts';
     if (tab.path === '/compliance-matrix') return currentPath === '/compliance-matrix';
+    if (tab.path === '/compliance') return currentPath === '/compliance' || currentPath.startsWith('/compliance/');
     if (tab.path === '/knowledgebase') return currentPath === '/knowledgebase';
     if (tab.path === '/past-performance') return currentPath === '/past-performance';
     return currentPath === tab.path || currentPath.startsWith(tab.path);

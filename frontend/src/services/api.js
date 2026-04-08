@@ -50,4 +50,22 @@ api.interceptors.response.use(
   }
 );
 
+// Compliance Engine
+export const getNAICSCodes = (category) => api.get('/api/compliance/naics', { params: { category } });
+export const getNAICSDetails = (code) => api.get(`/api/compliance/naics/${code}`);
+export const getComplianceRequirements = (category) => api.get('/api/compliance/requirements', { params: { category } });
+export const getComplianceRequirementDetails = (id) => api.get(`/api/compliance/requirements/${id}`);
+export const getContractVehicles = () => api.get('/api/compliance/vehicles');
+export const getContractVehicleDetails = (id) => api.get(`/api/compliance/vehicles/${id}`);
+export const getAgencies = () => api.get('/api/compliance/agencies');
+export const getCompanyCompliance = () => api.get('/api/compliance/company');
+export const updateCompanyProfile = (data) => api.post('/api/compliance/company', data);
+export const addCompanyNAICS = (naicsId, isPrimary) => api.post('/api/compliance/company/naics', { naics_id: naicsId, is_primary: isPrimary });
+export const removeCompanyNAICS = (naicsId) => api.delete(`/api/compliance/company/naics/${naicsId}`);
+export const updateCompanyComplianceStatus = (complianceId, data) => api.put(`/api/compliance/company/compliance/${complianceId}`, data);
+export const runComplianceCheck = () => api.get('/api/compliance/company/check');
+export const getRecommendations = () => api.get('/api/compliance/company/recommendations');
+export const runProposalComplianceCheck = (proposalId) => api.post(`/api/compliance/proposal/${proposalId}/check`);
+export const getProposalComplianceCheck = (proposalId) => api.get(`/api/compliance/proposal/${proposalId}/check`);
+
 export default api;

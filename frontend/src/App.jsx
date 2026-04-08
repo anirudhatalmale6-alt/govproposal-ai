@@ -28,6 +28,12 @@ import ResetPassword from './pages/ResetPassword';
 import Expertise from './pages/Expertise';
 import Knowledgebase from './pages/Knowledgebase';
 import PastPerformance from './pages/PastPerformance';
+import ComplianceDashboard from './pages/ComplianceDashboard';
+import NaicsExplorer from './pages/NaicsExplorer';
+import ComplianceRequirements from './pages/ComplianceRequirements';
+import ContractVehicles from './pages/ContractVehicles';
+import CompanyCompliance from './pages/CompanyCompliance';
+import ComplianceRecommendations from './pages/ComplianceRecommendations';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -178,6 +184,12 @@ function AppRoutes() {
         <Route path="/expertise" element={<Expertise />} />
         <Route path="/knowledgebase" element={<Knowledgebase />} />
         <Route path="/past-performance" element={<PastPerformance />} />
+        <Route path="/compliance" element={<ComplianceDashboard />} />
+        <Route path="/compliance/naics" element={<NaicsExplorer />} />
+        <Route path="/compliance/requirements" element={<ComplianceRequirements />} />
+        <Route path="/compliance/vehicles" element={<ContractVehicles />} />
+        <Route path="/compliance/company" element={<CompanyCompliance />} />
+        <Route path="/compliance/recommendations" element={<ComplianceRecommendations />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />

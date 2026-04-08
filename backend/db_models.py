@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -404,3 +405,172 @@ class Contract(Base):
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 
     user = relationship("User", foreign_keys=[user_id])
+
+
+# ──────────────────────────────────────────────
+# GovCon Compliance Engine Models
+# ──────────────────────────────────────────────
+
+class NAICSCode(Base):
+    __tablename__ = "naics_codes"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    code = Column(String(10), unique=True, nullable=False)
+    title = Column(Text, nullable=False)
+    description = Column(Text)
+    industry_category = Column(String(100))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+
+class ComplianceRequirement(Base):
+    __tablename__ = "compliance_requirements"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    name = Column(String(255), nullable=False)
+    category = Column(String(100))  # Financial, Cybersecurity, Labor, etc.
+    description = Column(Text)
+    mandatory = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+
+class NAICSComplianceMap(Base):
+    __tablename__ = "naics_compliance_map"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    naics_id = Column(String(36), ForeignKey("naics_codes.id", ondelete="CASCADE"))
+    compliance_id = Column(String(36), ForeignKey("compliance_requirements.id", ondelete="CASCADE"))
+    priority_level = Column(String(20))  # High / Medium / Low
+    notes = Column(Text)
+
+
+class Agency(Base):
+    __tablename__ = "agencies"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    name = Column(String(255), nullable=False)
+    department = Column(String(255))
+    website = Column(Text)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+
+class ContractVehicle(Base):
+    __tablename__ = "contract_vehicles"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    name = Column(String(255), nullable=False)
+    type = Column(String(100))  # GWAC, IDIQ, BPA
+    agency_id = Column(String(36), ForeignKey("agencies.id", ondelete="SET NULL"), nullable=True)
+    description = Column(Text)
+    eligibility_criteria = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    agency = relationship("Agency", foreign_keys=[agency_id])
+
+
+class NAICSContractMap(Base):
+    __tablename__ = "naics_contract_map"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    naics_id = Column(String(36), ForeignKey("naics_codes.id"))
+    contract_vehicle_id = Column(String(36), ForeignKey("contract_vehicles.id"))
+    relevance_score = Column(Integer)  # 1-100
+    notes = Column(Text)
+
+
+class ContractComplianceMap(Base):
+    __tablename__ = "contract_compliance_map"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    contract_vehicle_id = Column(String(36), ForeignKey("contract_vehicles.id"))
+    compliance_id = Column(String(36), ForeignKey("compliance_requirements.id"))
+    mandatory = Column(Boolean, default=True)
+
+
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    name = Column(String(255))
+    uei = Column(String(50))
+    sam_registered = Column(Boolean, default=False)
+    business_type = Column(String(100))
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class CompanyNAICS(Base):
+    __tablename__ = "company_naics"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"))
+    naics_id = Column(String(36), ForeignKey("naics_codes.id"))
+    is_primary = Column(Boolean, default=False)
+
+
+class CompanyCompliance(Base):
+    __tablename__ = "company_compliance"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"))
+    compliance_id = Column(String(36), ForeignKey("compliance_requirements.id"))
+    status = Column(String(50), default="Not Started")  # Compliant / In Progress / Not Started
+    certification_date = Column(DateTime(timezone=True))
+    expiry_date = Column(DateTime(timezone=True))
+    notes = Column(Text)
+
+
+class Opportunity(Base):
+    __tablename__ = "opportunities"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    title = Column(Text)
+    agency_id = Column(String(36), ForeignKey("agencies.id"))
+    naics_id = Column(String(36), ForeignKey("naics_codes.id"))
+    contract_vehicle_id = Column(String(36), ForeignKey("contract_vehicles.id"), nullable=True)
+    posted_date = Column(DateTime(timezone=True))
+    due_date = Column(DateTime(timezone=True))
+    estimated_value = Column(Float)
+    description = Column(Text)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    agency = relationship("Agency", foreign_keys=[agency_id])
+    naics = relationship("NAICSCode", foreign_keys=[naics_id])
+
+
+class ProposalComplianceCheck(Base):
+    __tablename__ = "proposal_compliance_check"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    proposal_id = Column(String(36), ForeignKey("proposals.id", ondelete="CASCADE"))
+    compliance_id = Column(String(36), ForeignKey("compliance_requirements.id"))
+    status = Column(String(50))  # Pass / Fail / Missing
+    remarks = Column(Text)
+
+
+class AIRule(Base):
+    __tablename__ = "ai_rules"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    rule_name = Column(String(255))
+    condition = Column(Text)  # JSON string
+    action = Column(Text)  # JSON string
+    priority = Column(Integer)
+    is_active = Column(Boolean, default=True)
+
+
+class AIRecommendation(Base):
+    __tablename__ = "ai_recommendations"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    company_id = Column(String(36), ForeignKey("companies.id"))
+    naics_id = Column(String(36), ForeignKey("naics_codes.id"))
+    recommended_contract_vehicle_id = Column(String(36), ForeignKey("contract_vehicles.id"))
+    score = Column(Integer)
+    reason = Column(Text)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)

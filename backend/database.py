@@ -61,5 +61,11 @@ async def get_db() -> AsyncSession:
 async def create_tables():
     """Create all database tables (called on app startup)."""
     async with engine.begin() as conn:
-        from db_models import User, VendorProfileDB, Proposal, Subscription, ProposalShare, AuditLog  # noqa: F401
+        from db_models import (  # noqa: F401
+            User, VendorProfileDB, Proposal, Subscription, ProposalShare, AuditLog,
+            NAICSCode, ComplianceRequirement, NAICSComplianceMap, Agency,
+            ContractVehicle, NAICSContractMap, ContractComplianceMap, Company,
+            CompanyNAICS, CompanyCompliance, Opportunity, ProposalComplianceCheck,
+            AIRule, AIRecommendation,
+        )
         await conn.run_sync(Base.metadata.create_all)

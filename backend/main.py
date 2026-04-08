@@ -41,6 +41,7 @@ from services.auth_service import (
     create_access_token,
 )
 from routes.auth import router as auth_router
+from routes.compliance import router as compliance_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -78,6 +79,7 @@ app.add_middleware(
 
 # Include auth routes
 app.include_router(auth_router)
+app.include_router(compliance_router, prefix="/api/compliance", tags=["Compliance"])
 
 # Initialize services
 ai_service = AIService()
@@ -186,6 +188,10 @@ async def on_startup():
                     db.add(tpl)
                 await db.commit()
                 logger.info("Seeded %d proposal templates.", len(get_seed_templates()))
+
+            # Seed compliance engine reference data
+            from seed_compliance import seed_compliance_data
+            await seed_compliance_data(db)
 
         except Exception as exc:
             await db.rollback()
