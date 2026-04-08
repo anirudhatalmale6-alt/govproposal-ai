@@ -16,6 +16,7 @@ import {
   CommandLineIcon,
   ExclamationTriangleIcon,
   ClipboardDocumentIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -55,6 +56,7 @@ export default function N8NAutomation() {
   const [oppSearch, setOppSearch] = useState('');
   const [selectedOpp, setSelectedOpp] = useState(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [showOppModal, setShowOppModal] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -367,60 +369,24 @@ export default function N8NAutomation() {
                             </div>
                           </div>
 
-                          {/* Opportunity Selector Table */}
+                          {/* Opportunity Selector - opens popup */}
                           <div>
                             <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Select Opportunity</label>
-                            <input
-                              type="text"
-                              placeholder="Search opportunities..."
-                              value={oppSearch}
-                              onChange={(e) => setOppSearch(e.target.value)}
-                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 mb-1"
-                            />
-                            <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
-                              {oppLoading ? (
-                                <div className="flex items-center justify-center py-4">
-                                  <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-400" />
-                                  <span className="text-xs text-gray-400 ml-2">Loading opportunities...</span>
-                                </div>
-                              ) : opportunities.length === 0 ? (
-                                <div className="text-center py-4">
-                                  <p className="text-xs text-gray-400">No opportunities found</p>
-                                </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowOppModal(true)}
+                              className="w-full flex items-center justify-between px-3 py-1.5 border border-gray-200 rounded-lg text-sm hover:border-blue/50 hover:bg-blue/5 transition-colors cursor-pointer"
+                            >
+                              {selectedOpp ? (
+                                <span className="flex items-center gap-1.5 text-gray-800 truncate">
+                                  <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                  {selectedOpp.title?.substring(0, 35)}{selectedOpp.title?.length > 35 ? '...' : ''}
+                                </span>
                               ) : (
-                                <table className="w-full text-xs">
-                                  <thead className="bg-gray-50 sticky top-0">
-                                    <tr>
-                                      <th className="text-left px-2 py-1.5 font-medium text-gray-500">Title</th>
-                                      <th className="text-left px-2 py-1.5 font-medium text-gray-500">Agency</th>
-                                      <th className="text-left px-2 py-1.5 font-medium text-gray-500">Due</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-gray-100">
-                                    {opportunities
-                                      .filter(o => !oppSearch || (o.title || '').toLowerCase().includes(oppSearch.toLowerCase()) || (o.agency || '').toLowerCase().includes(oppSearch.toLowerCase()))
-                                      .slice(0, 20)
-                                      .map((opp, idx) => (
-                                        <tr
-                                          key={opp.notice_id || idx}
-                                          onClick={() => handleSelectOpportunity(opp)}
-                                          className={`cursor-pointer hover:bg-blue-50 transition-colors ${selectedOpp === opp ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : ''}`}
-                                        >
-                                          <td className="px-2 py-1.5 max-w-[140px] truncate" title={opp.title}>{opp.title}</td>
-                                          <td className="px-2 py-1.5 max-w-[90px] truncate text-gray-500" title={opp.agency}>{opp.agency}</td>
-                                          <td className="px-2 py-1.5 text-gray-400 whitespace-nowrap">{opp.due_date ? new Date(opp.due_date).toLocaleDateString() : '-'}</td>
-                                        </tr>
-                                      ))}
-                                  </tbody>
-                                </table>
+                                <span className="text-gray-400">Browse & select opportunity...</span>
                               )}
-                            </div>
-                            {selectedOpp && (
-                              <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600">
-                                <CheckCircleIcon className="w-3 h-3" />
-                                Selected: {selectedOpp.title?.substring(0, 40)}{selectedOpp.title?.length > 40 ? '...' : ''}
-                              </div>
-                            )}
+                              <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            </button>
                           </div>
 
                           {/* Agency - auto-filled from selected opportunity */}
@@ -728,6 +694,110 @@ export default function N8NAutomation() {
                   {JSON.stringify(exportData.workflow, null, 2)}
                 </pre>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Opportunity Selection Modal */}
+      {showOppModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowOppModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-navy/5">
+              <h2 className="text-lg font-semibold text-navy flex items-center gap-2">
+                <MagnifyingGlassIcon className="w-5 h-5" />
+                Select Opportunity
+              </h2>
+              <button onClick={() => setShowOppModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer text-xl">&times;</button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="px-6 py-3 border-b border-gray-100">
+              <div className="relative">
+                <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by title, agency, or keyword..."
+                  value={oppSearch}
+                  onChange={(e) => setOppSearch(e.target.value)}
+                  autoFocus
+                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 focus:border-blue"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{opportunities.length} opportunities available</p>
+            </div>
+
+            {/* Opportunity Table */}
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 200px)' }}>
+              {oppLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <ArrowPathIcon className="w-6 h-6 animate-spin text-gray-400" />
+                  <span className="text-sm text-gray-400 ml-3">Loading opportunities...</span>
+                </div>
+              ) : opportunities.length === 0 ? (
+                <div className="text-center py-12">
+                  <MagnifyingGlassIcon className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400">No opportunities found</p>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 text-xs uppercase tracking-wider">Title</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 text-xs uppercase tracking-wider">Agency</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 text-xs uppercase tracking-wider">Type</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 text-xs uppercase tracking-wider">Due Date</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 text-xs uppercase tracking-wider w-20">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {opportunities
+                      .filter(o => {
+                        if (!oppSearch) return true;
+                        const q = oppSearch.toLowerCase();
+                        return (o.title || '').toLowerCase().includes(q)
+                          || (o.agency || '').toLowerCase().includes(q)
+                          || (o.description || '').toLowerCase().includes(q);
+                      })
+                      .map((opp, idx) => (
+                        <tr
+                          key={opp.notice_id || idx}
+                          className={`hover:bg-blue-50/50 transition-colors ${selectedOpp?.notice_id === opp.notice_id && selectedOpp?.title === opp.title ? 'bg-emerald-50' : ''}`}
+                        >
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-gray-900 line-clamp-2">{opp.title}</p>
+                            {opp.description && (
+                              <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{opp.description.substring(0, 100)}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 max-w-[180px]">
+                            <p className="truncate" title={opp.agency}>{opp.agency || '-'}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            {opp.type ? (
+                              <span className="inline-block px-2 py-0.5 bg-navy/10 text-navy text-xs rounded-full">{opp.type}</span>
+                            ) : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">
+                            {opp.due_date ? new Date(opp.due_date).toLocaleDateString() : '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => {
+                                handleSelectOpportunity(opp);
+                                setShowOppModal(false);
+                              }}
+                              className="px-3 py-1 bg-accent hover:bg-accent-dark text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                            >
+                              Select
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
