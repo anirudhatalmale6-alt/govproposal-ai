@@ -7,6 +7,10 @@ import {
   ShieldCheckIcon,
   TagIcon,
   ExclamationTriangleIcon,
+  PlusIcon,
+  TrashIcon,
+  XMarkIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
@@ -24,6 +28,9 @@ export default function ContractVehicles() {
   const [expandedId, setExpandedId] = useState(null);
   const [details, setDetails] = useState({});
   const [detailLoading, setDetailLoading] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ name: '', type: 'GWAC', description: '', agency_name: '', eligibility_criteria: '', website_url: '' });
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
@@ -63,12 +70,96 @@ export default function ContractVehicles() {
     }
   };
 
+  const handleAddVehicle = async () => {
+    if (!addForm.name.trim()) return;
+    try {
+      setAdding(true);
+      await api.post('/api/compliance/vehicles', addForm);
+      setShowAddModal(false);
+      setAddForm({ name: '', type: 'GWAC', description: '', agency_name: '', eligibility_criteria: '', website_url: '' });
+      await fetchVehicles();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to add vehicle');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDeleteVehicle = async (id) => {
+    if (!confirm('Delete this contract vehicle?')) return;
+    try {
+      await api.delete(`/api/compliance/vehicles/${id}`);
+      await fetchVehicles();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete vehicle');
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy">Contract Vehicles</h1>
-        <p className="text-gray-500 mt-1">Explore government contract vehicles and their requirements</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-navy">Contract Vehicles</h1>
+          <p className="text-gray-500 mt-1">Explore government contract vehicles and their requirements</p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
+        >
+          <PlusIcon className="w-4 h-4" />
+          Add New
+        </button>
       </div>
+
+      {/* Add Vehicle Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-navy">Add Contract Vehicle</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><XMarkIcon className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Name *</label>
+                <input type="text" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="e.g. GSA MAS, OASIS+" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30">
+                    <option value="GWAC">GWAC</option>
+                    <option value="IDIQ">IDIQ</option>
+                    <option value="BPA">BPA</option>
+                    <option value="GSA">GSA Schedule</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Agency</label>
+                  <input type="text" value={addForm.agency_name} onChange={(e) => setAddForm({ ...addForm, agency_name: e.target.value })} placeholder="e.g. GSA, DoD" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea value={addForm.description} onChange={(e) => setAddForm({ ...addForm, description: e.target.value })} rows={2} placeholder="Brief description of the contract vehicle" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                <input type="url" value={addForm.website_url} onChange={(e) => setAddForm({ ...addForm, website_url: e.target.value })} placeholder="https://..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Eligibility Criteria</label>
+                <textarea value={addForm.eligibility_criteria} onChange={(e) => setAddForm({ ...addForm, eligibility_criteria: e.target.value })} rows={2} placeholder="Who can apply for this vehicle?" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue/30" />
+              </div>
+              <button onClick={handleAddVehicle} disabled={adding || !addForm.name.trim()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:opacity-60">
+                <PlusIcon className="w-4 h-4" />
+                {adding ? 'Adding...' : 'Add Contract Vehicle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
@@ -109,16 +200,31 @@ export default function ContractVehicles() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${tColor}`}>
                           {vehicle.type}
                         </span>
-                        {vehicle.agency && (
+                        {(vehicle.agency_name || vehicle.agency) && (
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500">
                             <BuildingOffice2Icon className="w-3 h-3" />
-                            {vehicle.agency}
+                            {vehicle.agency_name || vehicle.agency}
                           </span>
+                        )}
+                        {vehicle.is_custom && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-purple-50 text-purple-600">Custom</span>
                         )}
                       </div>
                     </div>
-                    <div className="bg-navy/5 rounded-lg p-2.5 flex-shrink-0">
-                      <TruckIcon className="w-5 h-5 text-navy" />
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {vehicle.website_url && (
+                        <a href={vehicle.website_url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-blue rounded-lg hover:bg-blue/5" title="Visit website">
+                          <GlobeAltIcon className="w-4 h-4" />
+                        </a>
+                      )}
+                      {vehicle.is_custom && (
+                        <button onClick={() => handleDeleteVehicle(vehicle.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 cursor-pointer" title="Delete">
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      <div className="bg-navy/5 rounded-lg p-2.5">
+                        <TruckIcon className="w-5 h-5 text-navy" />
+                      </div>
                     </div>
                   </div>
 

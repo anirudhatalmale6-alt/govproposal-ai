@@ -71,6 +71,7 @@ export default function CompanyCompliance() {
   const [naicsSearching, setNaicsSearching] = useState(false);
 
   // Compliance edit modal
+  // Compliance edit modal
   const [editingCompliance, setEditingCompliance] = useState(null);
   const [complianceForm, setComplianceForm] = useState({
     status: 'not_started',
@@ -78,6 +79,7 @@ export default function CompanyCompliance() {
     expiry_date: '',
     notes: '',
   });
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchCompanyData();
@@ -195,6 +197,19 @@ export default function CompanyCompliance() {
     }
   };
 
+  const handleSyncProfile = async () => {
+    try {
+      setSyncing(true);
+      setError(null);
+      await api.post('/api/compliance/company/sync-profile');
+      await fetchCompanyData();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to sync from Business Profile. Make sure you have a Business Profile set up.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const profile = companyData?.profile || {};
   const naicsCodes = companyData?.naics_codes || [];
   const complianceStatuses = companyData?.compliance_statuses || [];
@@ -220,14 +235,24 @@ export default function CompanyCompliance() {
           <h1 className="text-3xl font-bold text-navy">Company Compliance</h1>
           <p className="text-gray-500 mt-1">Manage your company profile, NAICS codes, and compliance status</p>
         </div>
-        <button
-          onClick={handleRunCheck}
-          disabled={checking}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors cursor-pointer disabled:opacity-60"
-        >
-          <ArrowPathIcon className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
-          {checking ? 'Running...' : 'Run Full Check'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncProfile}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue hover:bg-blue-light text-white rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync from Business Profile'}
+          </button>
+          <button
+            onClick={handleRunCheck}
+            disabled={checking}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors cursor-pointer disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
+            {checking ? 'Running...' : 'Run Full Check'}
+          </button>
+        </div>
       </div>
 
       {error && (

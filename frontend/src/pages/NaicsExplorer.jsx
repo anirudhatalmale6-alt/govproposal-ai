@@ -48,6 +48,8 @@ export default function NaicsExplorer() {
   const [detailLoading, setDetailLoading] = useState(null);
   const [addingNaics, setAddingNaics] = useState(null);
   const [addSuccess, setAddSuccess] = useState(null);
+  const [complianceSuggestions, setComplianceSuggestions] = useState({});
+  const [togglingCompliance, setTogglingCompliance] = useState(null);
 
   useEffect(() => {
     fetchNaicsCodes();
@@ -70,12 +72,45 @@ export default function NaicsExplorer() {
     if (codeDetails[code]) return;
     try {
       setDetailLoading(code);
-      const res = await api.get(`/api/compliance/naics/${code}`);
-      setCodeDetails((prev) => ({ ...prev, [code]: res.data }));
+      const [detailRes, suggestRes] = await Promise.all([
+        api.get(`/api/compliance/naics/${code}`),
+        api.get(`/api/compliance/naics/${code}/suggest-compliance`).catch(() => ({ data: null })),
+      ]);
+      setCodeDetails((prev) => ({ ...prev, [code]: detailRes.data }));
+      if (suggestRes.data) {
+        setComplianceSuggestions((prev) => ({ ...prev, [code]: suggestRes.data }));
+      }
     } catch {
       // silently fail
     } finally {
       setDetailLoading(null);
+    }
+  };
+
+  const handleToggleCompliance = async (code, requirementId) => {
+    try {
+      setTogglingCompliance(requirementId);
+      const res = await api.post(`/api/compliance/naics/${code}/confirm-compliance/${requirementId}`);
+      // Update local state
+      setComplianceSuggestions((prev) => {
+        const suggestions = { ...prev };
+        if (suggestions[code]?.suggested_compliance) {
+          suggestions[code] = {
+            ...suggestions[code],
+            suggested_compliance: suggestions[code].suggested_compliance.map((s) =>
+              s.id === requirementId ? { ...s, confirmed: res.data.confirmed, user_status: res.data.status } : s
+            ),
+            confirmed_count: suggestions[code].suggested_compliance.filter(
+              (s) => (s.id === requirementId ? res.data.confirmed : s.confirmed)
+            ).length,
+          };
+        }
+        return suggestions;
+      });
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to toggle compliance');
+    } finally {
+      setTogglingCompliance(null);
     }
   };
 
@@ -231,51 +266,69 @@ export default function NaicsExplorer() {
                           </div>
                         )}
 
-                        {/* Required Compliance */}
-                        {details.requirements?.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-navy mb-2 flex items-center gap-2">
-                              <ShieldCheckIcon className="w-4 h-4" />
-                              Required Compliance ({details.requirements.length})
-                            </h3>
-                            <div className="overflow-x-auto">
-                              <table className="w-full">
-                                <thead>
-                                  <tr className="border-b border-gray-200">
-                                    <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Name</th>
-                                    <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Category</th>
-                                    <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Priority</th>
-                                    <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Mandatory</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {details.requirements.map((req, i) => (
-                                    <tr key={i} className="border-b border-gray-100 last:border-0">
-                                      <td className="px-3 py-2 text-sm text-gray-700">{req.name}</td>
-                                      <td className="px-3 py-2">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-600">
-                                          {req.category}
-                                        </span>
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${priorityColors[req.priority?.toLowerCase()] || priorityColors.low}`}>
-                                          {req.priority || 'Low'}
-                                        </span>
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        {req.mandatory ? (
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-700">Required</span>
-                                        ) : (
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-500">Optional</span>
+                        {/* AI Suggested Compliance with Checkmarks */}
+                        {(() => {
+                          const suggestions = complianceSuggestions[naics.code];
+                          const reqList = suggestions?.suggested_compliance || details.requirements || [];
+                          if (reqList.length === 0) return null;
+                          return (
+                            <div>
+                              <h3 className="text-sm font-semibold text-navy mb-1 flex items-center gap-2">
+                                <ShieldCheckIcon className="w-4 h-4" />
+                                AI Suggested Compliance ({reqList.length})
+                                {suggestions && (
+                                  <span className="text-xs font-normal text-gray-400">
+                                    {suggestions.confirmed_count || 0} of {suggestions.total || reqList.length} confirmed
+                                  </span>
+                                )}
+                              </h3>
+                              <p className="text-xs text-gray-400 mb-3">Check mark items your company is compliant with</p>
+                              <div className="space-y-1.5">
+                                {reqList.map((req, i) => {
+                                  const isConfirmed = req.confirmed || req.user_status === 'compliant';
+                                  const isToggling = togglingCompliance === req.id;
+                                  return (
+                                    <div
+                                      key={req.id || i}
+                                      className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
+                                        isConfirmed ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-gray-100'
+                                      }`}
+                                    >
+                                      <button
+                                        onClick={() => req.id && handleToggleCompliance(naics.code, req.id)}
+                                        disabled={isToggling || !req.id}
+                                        className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors cursor-pointer ${
+                                          isConfirmed
+                                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                                            : 'border-gray-300 hover:border-emerald-400'
+                                        } ${isToggling ? 'opacity-50' : ''}`}
+                                      >
+                                        {isConfirmed && (
+                                          <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
+                                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                          </svg>
                                         )}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                      </button>
+                                      <div className="flex-1 min-w-0">
+                                        <span className={`text-sm ${isConfirmed ? 'text-emerald-700 font-medium' : 'text-gray-700'}`}>{req.name}</span>
+                                      </div>
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium ${
+                                        req.category === 'Cybersecurity' ? 'bg-red-50 text-red-600' :
+                                        req.category === 'Financial' ? 'bg-amber-50 text-amber-600' :
+                                        'bg-gray-100 text-gray-500'
+                                      }`}>
+                                        {req.category}
+                                      </span>
+                                      {req.mandatory && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-red-50 text-red-700">Required</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Eligible Contract Vehicles */}
                         {details.contract_vehicles?.length > 0 && (

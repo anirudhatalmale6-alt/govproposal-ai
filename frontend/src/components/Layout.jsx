@@ -42,7 +42,6 @@ const topNavTabs = [
   { label: 'Knowledgebase', path: '/knowledgebase', icon: FolderOpenIcon },
   { label: 'Past Performance', path: '/past-performance', icon: TrophyIcon },
   { label: 'Expertise', path: '/expertise', icon: AcademicCapIcon },
-  { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
   { label: 'Compliance', path: '/compliance', icon: ClipboardDocumentCheckIcon },
   { label: 'N8N Automation', path: '/n8n', icon: Cog6ToothIcon },
   { label: 'Business Profile', path: '/vendor-profile', icon: BuildingOffice2Icon },
@@ -90,11 +89,9 @@ const sidebarContextMap = {
     { label: 'Capability Statement', path: '/past-performance?section=capability', icon: PencilSquareIcon },
     { label: 'Capability Examples', path: '/past-performance?section=examples', icon: SparklesIcon },
   ],
-  '/compliance-matrix': [
-    { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
-  ],
   '/compliance': [
     { label: 'Compliance Dashboard', path: '/compliance', icon: ClipboardDocumentCheckIcon },
+    { label: 'Compliance Matrix', path: '/compliance-matrix', icon: TableCellsIcon },
     { label: 'NAICS Explorer', path: '/compliance/naics', icon: TagIcon },
     { label: 'Requirements', path: '/compliance/requirements', icon: ShieldCheckIcon },
     { label: 'Contract Vehicles', path: '/compliance/vehicles', icon: TruckIcon },
@@ -140,8 +137,7 @@ export default function Layout() {
     if (tab.path === '/vendor-profile') return currentPath === '/vendor-profile';
     if (tab.path === '/opportunities') return currentPath === '/opportunities' || currentPath === '/rfp-deconstructor';
     if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts';
-    if (tab.path === '/compliance-matrix') return currentPath === '/compliance-matrix';
-    if (tab.path === '/compliance') return currentPath === '/compliance' || currentPath.startsWith('/compliance/');
+    if (tab.path === '/compliance') return currentPath === '/compliance' || currentPath.startsWith('/compliance/') || currentPath === '/compliance-matrix';
     if (tab.path === '/knowledgebase') return currentPath === '/knowledgebase';
     if (tab.path === '/past-performance') return currentPath === '/past-performance';
     return currentPath === tab.path || currentPath.startsWith(tab.path);

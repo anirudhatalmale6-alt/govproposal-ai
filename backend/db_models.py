@@ -463,6 +463,8 @@ class ContractVehicle(Base):
     agency_id = Column(String(36), ForeignKey("agencies.id", ondelete="SET NULL"), nullable=True)
     description = Column(Text)
     eligibility_criteria = Column(Text)
+    website_url = Column(String(500))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)  # NULL = system-wide
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
