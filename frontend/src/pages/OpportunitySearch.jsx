@@ -668,6 +668,14 @@ export default function OpportunitySearch() {
                         </span>
                       </div>
                     )}
+                    {opp.naics_code && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <TagIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                          NAICS: {opp.naics_code}
+                        </span>
+                      </div>
+                    )}
                     {opp.source && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <TagIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />

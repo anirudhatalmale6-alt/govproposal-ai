@@ -387,10 +387,10 @@ def generate_docx(proposal: Dict) -> io.BytesIO:
         rp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         rp.paragraph_format.space_before = Pt(0)
         rp.paragraph_format.space_after = Pt(0)
-        rr = rp.add_run("CONFIDENTIAL — Document")
+        rr = rp.add_run(f"Confidential  |  {vendor_name or ''}")
         rr.font.size = Pt(7)
-        rr.font.color.rgb = RGBColor(0x99, 0x00, 0x00)
-        rr.font.bold = True
+        rr.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+        rr.font.bold = False
         rr.font.name = "Calibri"
 
         # Remove borders from footer table
@@ -582,10 +582,10 @@ def generate_docx(proposal: Dict) -> io.BytesIO:
 
         doc.add_paragraph("")
 
-        # Confidential notice
+        # Professional footer note
         _add_formatted_paragraph(
-            doc, "CONFIDENTIAL — FOR GOVERNMENT USE ONLY",
-            size=9, color=RGBColor(0x99, 0x00, 0x00), italic=True,
+            doc, f"Confidential  |  {vendor_name or 'Company Name'}  |  Prepared {display_date}",
+            size=9, color=RGBColor(0x6B, 0x72, 0x80), italic=False,
             alignment=WD_ALIGN_PARAGRAPH.CENTER
         )
 
@@ -1146,7 +1146,12 @@ def generate_pdf(proposal: Dict) -> io.BytesIO:
         story.append(bottom)
 
         story.append(Spacer(1, 0.2 * inch))
-        story.append(RLParagraph("CONFIDENTIAL \u2014 FOR GOVERNMENT USE ONLY", styles["Confidential"]))
+        # Professional footer note (no CONFIDENTIAL marking)
+        story.append(RLParagraph(
+            f"Confidential  |  {_escape_xml(vendor_name or 'Company Name')}  |  Prepared {_escape_xml(display_date)}",
+            ParagraphStyle("CoverFooterNote", parent=styles["Normal"],
+                           fontSize=9, textColor=colors.HexColor("#6B7280"),
+                           alignment=1, fontName="Helvetica")))
         story.append(PageBreak())
 
         # --- Table of Contents with Volume grouping + page numbers ---
@@ -1317,10 +1322,10 @@ def generate_pdf(proposal: Dict) -> io.BytesIO:
             canvas.setFillColor(colors.HexColor("#6B7280"))
             canvas.drawCentredString(page_w / 2, footer_y, f"Page {canvas.getPageNumber()}")
 
-            # Right: CONFIDENTIAL
-            canvas.setFont("Helvetica-Bold", 7)
-            canvas.setFillColor(colors.HexColor("#990000"))
-            canvas.drawRightString(page_w - 0.75 * inch, footer_y, "CONFIDENTIAL \u2014 Document")
+            # Right: Confidential + page total
+            canvas.setFont("Helvetica", 7)
+            canvas.setFillColor(colors.HexColor("#6B7280"))
+            canvas.drawRightString(page_w - 0.75 * inch, footer_y, f"Confidential  |  {vendor_name or ''}")
 
             canvas.restoreState()
 

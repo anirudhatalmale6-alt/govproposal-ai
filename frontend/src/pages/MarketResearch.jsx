@@ -326,13 +326,13 @@ function LaborRateTab() {
           )}
 
           {/* Source Data Table */}
-          {results.source_data && results.source_data.length > 0 && (
+          {results.source_awards && results.source_awards.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100">
                 <h3 className="text-sm font-semibold text-navy">
-                  Source Contract Awards ({results.source_data.length})
+                  Source Contract Awards ({results.source_awards.length})
                 </h3>
-                <p className="text-xs text-gray-400 mt-0.5">Individual contract data that informed these rates</p>
+                <p className="text-xs text-gray-400 mt-0.5">Individual contract data from USASpending.gov that informed these rates</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -340,25 +340,40 @@ function LaborRateTab() {
                     <tr className="bg-gray-50 text-left">
                       <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendor</th>
                       <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Agency</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rate</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contract #</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Award Amount</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Award ID</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {results.source_data.map((item, idx) => (
+                    {results.source_awards.map((item, idx) => (
                       <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-3 font-medium text-navy">{item.vendor || 'N/A'}</td>
+                        <td className="px-6 py-3 font-medium text-navy">{item.recipient || 'N/A'}</td>
                         <td className="px-6 py-3 text-gray-600">{item.agency || 'N/A'}</td>
-                        <td className="px-6 py-3 font-semibold text-navy">{formatCurrency(item.rate)}</td>
-                        <td className="px-6 py-3 text-gray-500 font-mono text-xs">{item.contract_number || 'N/A'}</td>
-                        <td className="px-6 py-3 text-gray-500">{formatDate(item.date)}</td>
-                        <td className="px-6 py-3 text-gray-500">{item.location || 'N/A'}</td>
+                        <td className="px-6 py-3 font-semibold text-navy">{item.amount_formatted || formatCurrency(item.amount)}</td>
+                        <td className="px-6 py-3 text-gray-500 font-mono text-xs">{item.award_id || 'N/A'}</td>
+                        <td className="px-6 py-3 text-gray-500">{formatDate(item.start_date)}{item.end_date ? ` — ${formatDate(item.end_date)}` : ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="px-6 py-3 bg-blue-50/50 border-t border-gray-100">
+                <p className="text-xs text-gray-500">
+                  Data sourced from <a href="https://www.usaspending.gov" target="_blank" rel="noopener noreferrer" className="text-blue hover:underline font-medium">USASpending.gov</a> (last 3 years of contract awards) and GSA Schedule benchmarks.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Data Source Info */}
+          {results && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mt-4">
+              <h3 className="text-sm font-semibold text-navy mb-2">About This Data</h3>
+              <div className="space-y-2 text-xs text-gray-500">
+                <p><span className="font-medium text-gray-700">Market Rates:</span> Estimated from contract award amounts on USASpending.gov, back-calculated to hourly rates based on award duration and scope.</p>
+                <p><span className="font-medium text-gray-700">GSA Benchmarks:</span> Based on GSA Schedule labor rate data for comparable categories.</p>
+                <p><span className="font-medium text-gray-700">Sources:</span> <a href="https://www.usaspending.gov" target="_blank" rel="noopener noreferrer" className="text-blue hover:underline">USASpending.gov</a> | <a href="https://www.gsa.gov/buy-through-us/purchasing-programs/gsa-multiple-award-schedule" target="_blank" rel="noopener noreferrer" className="text-blue hover:underline">GSA Schedules</a></p>
               </div>
             </div>
           )}

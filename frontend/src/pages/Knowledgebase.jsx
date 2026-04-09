@@ -235,6 +235,18 @@ export default function Knowledgebase() {
         </div>
       )}
 
+      {/* Data Source Info */}
+      {searched && results.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mt-4 mb-6">
+          <h3 className="text-sm font-semibold text-navy mb-2">About This Data</h3>
+          <div className="space-y-2 text-xs text-gray-500">
+            <p><span className="font-medium text-gray-700">Contract Awards:</span> Real government contract data from the last 2 years, sourced from USASpending.gov federal spending database.</p>
+            <p><span className="font-medium text-gray-700">Vendor Analysis:</span> Aggregated by recipient to show competitive landscape and market positioning.</p>
+            <p><span className="font-medium text-gray-700">Sources:</span> <a href="https://www.usaspending.gov" target="_blank" rel="noopener noreferrer" className="text-blue hover:underline">USASpending.gov</a> | <a href="https://sam.gov" target="_blank" rel="noopener noreferrer" className="text-blue hover:underline">SAM.gov</a></p>
+          </div>
+        </div>
+      )}
+
       {/* Competitor Directory (Coming Soon) */}
       <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6 opacity-60 pointer-events-none select-none">
         <div className="flex items-center justify-between mb-4">

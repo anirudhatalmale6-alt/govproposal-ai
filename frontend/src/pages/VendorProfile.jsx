@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   UserCircleIcon,
   BuildingOffice2Icon,
@@ -68,9 +69,9 @@ const SELECT_CLASS = `${INPUT_CLASS} bg-white`;
 const LABEL_CLASS = 'block text-sm font-medium text-gray-700 mb-1.5';
 
 // Section wrapper — defined outside component to avoid re-mount on every render
-function Section({ icon: Icon, title, children }) {
+function Section({ icon: Icon, title, children, id }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+    <div id={id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6 scroll-mt-20">
       <h2 className="text-lg font-semibold text-navy mb-5 flex items-center gap-2">
         <Icon className="w-5 h-5" />
         {title}
@@ -276,17 +277,90 @@ export default function VendorProfile() {
     input.click();
   };
 
+  const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+
+  // Map sidebar section params to section IDs
+  const sectionMap = {
+    classification: 'section-business-classifications',
+    certifications: 'section-certifications',
+    contracts: 'section-contract-vehicles',
+    registrations: 'section-government-registrations',
+    contact: 'section-contact-details',
+    about: 'section-company-overview',
+  };
+
+  // Scroll to section when loading finishes
   useEffect(() => {
-    const saved = localStorage.getItem('vendorProfile');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.naics_codes === 'string') {
-          parsed.naics_codes = parsed.naics_codes.split(',').map((c) => c.trim()).filter(Boolean);
-        }
-        setProfile({ ...initialProfile, ...parsed });
-      } catch { /* ignore */ }
+    if (!loading) {
+      const sectionParam = searchParams.get('section');
+      if (sectionParam && sectionMap[sectionParam]) {
+        setTimeout(() => {
+          const el = document.getElementById(sectionMap[sectionParam]);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 200);
+      }
     }
+  }, [loading, searchParams]);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        // Try to load from backend first
+        const res = await api.get('/api/vendor-profiles');
+        const profiles = res.data?.profiles || res.data || [];
+        if (profiles.length > 0) {
+          const dbProfile = profiles[0];
+          // Map backend fields to frontend fields
+          const mapped = {
+            ...initialProfile,
+            company_name: dbProfile.company_name || '',
+            cage_code: dbProfile.cage_code || '',
+            duns_number: dbProfile.duns_number || '',
+            naics_codes: Array.isArray(dbProfile.naics_codes) ? dbProfile.naics_codes : (dbProfile.naics_codes || '').split(',').map(c => c.trim()).filter(Boolean),
+            about_company: dbProfile.capabilities || '',
+            capability_statement: dbProfile.past_performance || '',
+            socioeconomic_status: (dbProfile.socioeconomic_status || 'Small Business').split(',')[0].trim(),
+            contact_name: dbProfile.contact_info?.name || '',
+            contact_email: dbProfile.contact_info?.email || '',
+            contact_phone: dbProfile.contact_info?.phone || '',
+            contact_address: dbProfile.contact_info?.address || '',
+          };
+          // Merge with any extra fields from localStorage (team members, logos, etc.)
+          const saved = localStorage.getItem('vendorProfile');
+          if (saved) {
+            try {
+              const local = JSON.parse(saved);
+              // Keep localStorage fields that backend doesn't store
+              for (const key of ['company_logo', 'management_team', 'executive_team', 'past_performances', 'capability_examples', 'ein_tin', 'business_registration_date', 'organizational_type', 'state_of_incorporation', 'years_in_business', 'number_of_employees', 'annual_revenue', 'sam_registration_status', 'sam_expiration_date', 'security_clearance_level', 'certifications', 'contract_vehicles', 'registered_address_line1', 'registered_address_line2', 'registered_address_city', 'registered_address_state', 'registered_address_zip', 'registered_address_country', 'branches', 'government_portals', 'sam_login_user', 'sam_login_password', 'business_classifications']) {
+                if (local[key] !== undefined && local[key] !== '' && (Array.isArray(local[key]) ? local[key].length > 0 : true)) {
+                  mapped[key] = local[key];
+                }
+              }
+            } catch { /* ignore */ }
+          }
+          setProfile(mapped);
+          setEditMode(false); // Start locked if data exists
+          setLoading(false);
+          return;
+        }
+      } catch { /* backend fetch failed, fall back to localStorage */ }
+
+      // Fallback to localStorage
+      const saved = localStorage.getItem('vendorProfile');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.naics_codes === 'string') {
+            parsed.naics_codes = parsed.naics_codes.split(',').map((c) => c.trim()).filter(Boolean);
+          }
+          setProfile({ ...initialProfile, ...parsed });
+          setEditMode(false);
+        } catch { /* ignore */ }
+      }
+      setLoading(false);
+    };
+    loadProfile();
   }, []);
 
   const handleChange = (field, value) => {
@@ -378,7 +452,7 @@ export default function VendorProfile() {
   const selectClass = SELECT_CLASS;
   const labelClass = LABEL_CLASS;
 
-  const [editMode, setEditMode] = useState(true);
+  const [editMode, setEditMode] = useState(false);
 
   const handleSaveAndLock = async () => {
     setSaving(true);
@@ -474,7 +548,7 @@ export default function VendorProfile() {
         <fieldset disabled={!editMode} className={!editMode ? 'opacity-80' : ''}>
 
         {/* ─── 1. COMPANY INFORMATION ──────────────────────────── */}
-        <Section icon={BuildingOffice2Icon} title="Company Information">
+        <Section icon={BuildingOffice2Icon} title="Company Information" id="section-company-overview">
           {/* Logo Upload */}
           <div className="mb-6 pb-6 border-b border-gray-100">
             <label className={labelClass}>
@@ -597,7 +671,7 @@ export default function VendorProfile() {
         </Section>
 
         {/* ─── 2. ADDRESS ──────────────────────────────────────── */}
-        <Section icon={MapPinIcon} title="Address">
+        <Section icon={MapPinIcon} title="Address" id="section-contact-information">
           <div className="space-y-5">
             <div>
               <label className={labelClass}>Registered / Headquarters Address</label>
@@ -651,7 +725,7 @@ export default function VendorProfile() {
         </Section>
 
         {/* ─── 3. BUSINESS CLASSIFICATION ──────────────────────── */}
-        <Section icon={ShieldCheckIcon} title="Business Classification">
+        <Section icon={ShieldCheckIcon} title="Business Classification" id="section-business-classifications">
           <label className={labelClass}>Select all classifications that apply to your business</label>
           <div className="flex flex-wrap gap-2">
             {classificationOptions.map((cls) => {
@@ -668,7 +742,7 @@ export default function VendorProfile() {
         </Section>
 
         {/* ─── 4. CERTIFICATIONS ───────────────────────────────── */}
-        <Section icon={DocumentCheckIcon} title="Certifications">
+        <Section icon={DocumentCheckIcon} title="Certifications" id="section-certifications">
           <label className={labelClass}>Select all certifications that apply <span className="text-gray-400 font-normal">(select all that apply)</span></label>
           <div className="flex flex-wrap gap-2">
             {certificationOptions.map((cert) => {
@@ -685,7 +759,7 @@ export default function VendorProfile() {
         </Section>
 
         {/* ─── 5. CONTRACT VEHICLES ────────────────────────────── */}
-        <Section icon={BriefcaseIcon} title="Contract Vehicles">
+        <Section icon={BriefcaseIcon} title="Contract Vehicles" id="section-contract-vehicles">
           <label className={labelClass}>Select all contract vehicles <span className="text-gray-400 font-normal">(select all that apply)</span></label>
           <div className="flex flex-wrap gap-2">
             {contractVehicleOptions.map((cv) => {
@@ -702,7 +776,7 @@ export default function VendorProfile() {
         </Section>
 
         {/* ─── 7. GOVERNMENT REGISTRATION ──────────────────────── */}
-        <Section icon={ShieldCheckIcon} title="Government Registration">
+        <Section icon={ShieldCheckIcon} title="Government Registration" id="section-government-registrations">
           {/* SAM.gov Registration */}
           <div className="mb-6 pb-6 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-navy mb-4">SAM.gov Registration</h3>
@@ -780,7 +854,7 @@ export default function VendorProfile() {
         </Section>
 
         {/* ─── 7. CONTACT INFORMATION ──────────────────────────── */}
-        <Section icon={PhoneIcon} title="Contact Information">
+        <Section icon={PhoneIcon} title="Contact Information" id="section-contact-details">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className={labelClass}>Contact Name</label>

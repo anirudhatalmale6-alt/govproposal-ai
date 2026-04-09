@@ -95,6 +95,7 @@ class SAMService:
                 "description": "Seeking contractor to modernize legacy IT infrastructure, migrate to cloud, and implement zero-trust architecture across DoD networks.",
                 "posted_date": "2026-03-01",
                 "type": "Solicitation",
+                "naics_code": "541512",
             },
             {
                 "title": "Cybersecurity Operations Center Support",
@@ -104,6 +105,7 @@ class SAMService:
                 "description": "24/7 Security Operations Center staffing, threat intelligence, incident response, and vulnerability management services.",
                 "posted_date": "2026-03-05",
                 "type": "Solicitation",
+                "naics_code": "541519",
             },
             {
                 "title": "Cloud Migration and Managed Services",
@@ -113,6 +115,7 @@ class SAMService:
                 "description": "AWS GovCloud and Azure Government migration services including architecture design, data migration, and ongoing managed services.",
                 "posted_date": "2026-03-10",
                 "type": "Presolicitation",
+                "naics_code": "541512",
             },
             {
                 "title": "Data Analytics and Business Intelligence Platform",
@@ -122,6 +125,7 @@ class SAMService:
                 "description": "Development and maintenance of enterprise data analytics platform for healthcare data processing, reporting, and predictive analytics.",
                 "posted_date": "2026-03-08",
                 "type": "Solicitation",
+                "naics_code": "541511",
             },
             {
                 "title": "Software Development and DevSecOps Services",
@@ -131,6 +135,7 @@ class SAMService:
                 "description": "Agile software development, CI/CD pipeline management, and DevSecOps implementation for veteran-facing digital services.",
                 "posted_date": "2026-03-12",
                 "type": "Sources Sought",
+                "naics_code": "541511",
             },
             {
                 "title": "Artificial Intelligence and Machine Learning Services",
@@ -140,6 +145,7 @@ class SAMService:
                 "description": "AI/ML solution development including NLP, computer vision, and predictive modeling for defense applications.",
                 "posted_date": "2026-03-11",
                 "type": "Solicitation",
+                "naics_code": "541715",
             },
             {
                 "title": "IT Help Desk and End User Support Services",
@@ -149,6 +155,7 @@ class SAMService:
                 "description": "Tier 1-3 IT support services, asset management, and end-user training for 15,000+ government employees.",
                 "posted_date": "2026-03-07",
                 "type": "Solicitation",
+                "naics_code": "541513",
             },
             {
                 "title": "Network Infrastructure Modernization",
@@ -158,6 +165,7 @@ class SAMService:
                 "description": "Upgrade and modernize network infrastructure including SD-WAN deployment, 5G integration, and network security enhancements.",
                 "posted_date": "2026-03-09",
                 "type": "Presolicitation",
+                "naics_code": "541512",
             },
         ]
 
@@ -166,7 +174,9 @@ class SAMService:
             kw_lower = keyword.lower()
             demo_data = [o for o in demo_data if kw_lower in o["title"].lower() or kw_lower in o["description"].lower()]
 
-        # Filter by NAICS (in demo, just return all if NAICS provided since it's demo data)
+        # Filter by NAICS code
+        if naics:
+            demo_data = [o for o in demo_data if o.get("naics_code", "").startswith(naics)]
 
         return demo_data[:limit]
 
