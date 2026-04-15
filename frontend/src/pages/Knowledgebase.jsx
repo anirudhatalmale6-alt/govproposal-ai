@@ -50,11 +50,12 @@ export default function Knowledgebase() {
       if (agency.trim()) params.agency = agency.trim();
       if (naicsCode.trim()) params.naics_code = naicsCode.trim();
       const response = await api.get('/api/market-research/competitor-awards', { params });
+      const searchedNaics = naicsCode.trim();
       const awards = (response.data.awards || []).map((a) => ({
         ...a,
         vendor_name: a.recipient || a.vendor_name || 'Unknown Vendor',
         award_value: a.amount || a.award_value || 0,
-        naics_code: a.naics || a.naics_code || '',
+        naics_code: a.naics || a.naics_code || searchedNaics || '',
         award_date: a.start_date || a.award_date || '',
         end_date: a.end_date || '',
         id: a.award_id || a.id || '',

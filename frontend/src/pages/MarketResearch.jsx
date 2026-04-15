@@ -237,6 +237,16 @@ function LaborRateTab() {
       {/* Results */}
       {searched && !loading && !error && results && (
         <div className="space-y-6">
+          {/* Filters Applied */}
+          {(naicsCode.trim() || location.trim()) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-center gap-2 text-sm text-blue-700">
+              <TagIcon className="w-4 h-4 flex-shrink-0" />
+              <span>Filtered by: <span className="font-medium">{laborCategory}</span></span>
+              {naicsCode.trim() && <span className="bg-blue-100 px-2 py-0.5 rounded text-xs font-medium">NAICS: {naicsCode.trim()}</span>}
+              {location.trim() && <span className="bg-blue-100 px-2 py-0.5 rounded text-xs font-medium">Location: {location.trim()}</span>}
+              <span className="text-xs text-blue-500 ml-auto">Data from USASpending.gov + GSA Schedules</span>
+            </div>
+          )}
           {/* Rate Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Average Rate */}

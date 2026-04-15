@@ -2300,7 +2300,7 @@ Return ONLY valid JSON, no markdown fences.`;
                       Table of Contents
                     </h2>
                     <ol className="space-y-1.5">
-                      {sectionKeys.filter((key) => !skippedSections.has(key)).map((key, idx) => (
+                      {sectionKeys.filter((key) => !skippedSections.has(key) && key !== 'cover_page').map((key, idx) => (
                         <li key={key} className="flex items-center text-sm text-gray-600">
                           <span className="font-semibold text-gray-800 w-8">{idx + 1}.</span>
                           <span>{sectionTitles[key] || sectionLabels[key] || key}</span>
@@ -2311,8 +2311,8 @@ Return ONLY valid JSON, no markdown fences.`;
                     </ol>
                   </div>
 
-                  {/* Sections */}
-                  {sectionKeys.filter((key) => !skippedSections.has(key)).map((key, idx) => (
+                  {/* Sections (skip cover_page — already rendered as styled header above) */}
+                  {sectionKeys.filter((key) => !skippedSections.has(key) && key !== 'cover_page').map((key, idx) => (
                     <div
                       key={key}
                       ref={(el) => (sectionRefs.current[key] = el)}
