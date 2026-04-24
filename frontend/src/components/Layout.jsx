@@ -51,6 +51,7 @@ const topNavTabs = [
 const sidebarContextMap = {
   '/dashboard': [
     { label: 'Overview', path: '/dashboard', icon: HomeIcon },
+    { label: 'Advanced Analytics', path: '/advanced-analytics', icon: ChartBarIcon },
     { label: 'Audit Log', path: '/audit-log', icon: ClockIcon },
     { label: 'Billing', path: '/billing', icon: CreditCardIcon },
   ],
@@ -103,6 +104,8 @@ const sidebarContextMap = {
     { label: 'My Proposals', path: '/proposals', icon: FolderOpenIcon },
     { label: 'Templates', path: '/templates', icon: RectangleStackIcon },
     { label: 'Proposal Editor', path: '/proposal-editor', icon: PencilSquareIcon },
+    { label: 'Proposal Scoring', path: '/scoring', icon: ChartBarIcon },
+    { label: 'Collaboration', path: '/collaboration', icon: UserGroupIcon },
     { label: 'Win Probability', path: '/win-probability', icon: TrophyIcon },
     { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },
   ],
@@ -133,10 +136,10 @@ export default function Layout() {
   // Determine which top tab is active based on current path
   const currentPath = location.pathname;
   const activeTopTab = topNavTabs.find(tab => {
-    if (tab.path === '/dashboard') return currentPath === '/dashboard' || currentPath === '/audit-log' || currentPath === '/billing' || currentPath === '/admin';
+    if (tab.path === '/dashboard') return currentPath === '/dashboard' || currentPath === '/audit-log' || currentPath === '/billing' || currentPath === '/admin' || currentPath === '/advanced-analytics';
     if (tab.path === '/vendor-profile') return currentPath === '/vendor-profile';
     if (tab.path === '/opportunities') return currentPath === '/opportunities' || currentPath === '/rfp-deconstructor';
-    if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts';
+    if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts' || currentPath === '/scoring' || currentPath === '/collaboration';
     if (tab.path === '/compliance') return currentPath === '/compliance' || currentPath.startsWith('/compliance/') || currentPath === '/compliance-matrix';
     if (tab.path === '/knowledgebase') return currentPath === '/knowledgebase';
     if (tab.path === '/past-performance') return currentPath === '/past-performance';

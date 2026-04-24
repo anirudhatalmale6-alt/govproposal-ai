@@ -35,6 +35,9 @@ import ContractVehicles from './pages/ContractVehicles';
 import CompanyCompliance from './pages/CompanyCompliance';
 import ComplianceRecommendations from './pages/ComplianceRecommendations';
 import N8NAutomation from './pages/N8NAutomation';
+import ProposalScoring from './pages/ProposalScoring';
+import Collaboration from './pages/Collaboration';
+import AdvancedAnalytics from './pages/AdvancedAnalytics';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -192,6 +195,9 @@ function AppRoutes() {
         <Route path="/compliance/company" element={<CompanyCompliance />} />
         <Route path="/compliance/recommendations" element={<ComplianceRecommendations />} />
         <Route path="/n8n" element={<N8NAutomation />} />
+        <Route path="/scoring" element={<ProposalScoring />} />
+        <Route path="/collaboration" element={<Collaboration />} />
+        <Route path="/advanced-analytics" element={<AdvancedAnalytics />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />

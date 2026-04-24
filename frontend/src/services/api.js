@@ -79,4 +79,28 @@ export const updateN8NSettings = (data) => api.put('/api/n8n/settings', data);
 export const exportN8NWorkflow = (type) => api.get(`/api/n8n/workflows/${type}/export`);
 export const n8nWebhookCallback = (data) => api.post('/api/n8n/webhook', data);
 
+// Proposal Scoring
+export const scoreProposal = (proposalId) => api.post(`/api/proposals/${proposalId}/score`);
+export const getProposalFeedback = (proposalId) => api.get(`/api/proposals/${proposalId}/feedback`);
+
+// Team Collaboration
+export const addComment = (proposalId, data) => api.post(`/api/proposals/${proposalId}/comments`, data);
+export const getComments = (proposalId, sectionKey) => api.get(`/api/proposals/${proposalId}/comments`, { params: { section_key: sectionKey } });
+export const getVersions = (proposalId) => api.get(`/api/proposals/${proposalId}/versions`);
+export const saveVersion = (proposalId, data) => api.post(`/api/proposals/${proposalId}/versions`, data);
+
+// Advanced Compliance Auto-Check
+export const autoCheckCompliance = (proposalId, data) => api.post(`/api/compliance/auto-check/${proposalId}`, data);
+
+// Advanced Analytics
+export const getWinRateAnalytics = () => api.get('/api/analytics/win-rate');
+export const getPipelineValue = () => api.get('/api/analytics/pipeline-value');
+export const getResponseTime = () => api.get('/api/analytics/response-time');
+export const getTeamPerformance = () => api.get('/api/analytics/team-performance');
+
+// Notifications
+export const getNotifications = (unreadOnly = false) => api.get('/api/notifications', { params: { unread_only: unreadOnly } });
+export const markNotificationRead = (id) => api.put(`/api/notifications/${id}/read`);
+export const markAllNotificationsRead = () => api.put('/api/notifications/read-all');
+
 export default api;
