@@ -103,4 +103,24 @@ export const getNotifications = (unreadOnly = false) => api.get('/api/notificati
 export const markNotificationRead = (id) => api.put(`/api/notifications/${id}/read`);
 export const markAllNotificationsRead = () => api.put('/api/notifications/read-all');
 
+// Opportunity Alerts
+export const createAlert = (data) => api.post('/api/alerts/create', data);
+export const getAlerts = () => api.get('/api/alerts');
+export const deleteAlert = (id) => api.delete(`/api/alerts/${id}`);
+export const getAlertMatches = () => api.get('/api/alerts/matches');
+
+// Advanced Search
+export const searchProposals = (data) => api.post('/api/search/proposals', data);
+export const searchOpportunitiesAdvanced = (data) => api.post('/api/search/opportunities', data);
+export const getSavedSearches = () => api.get('/api/search/saved');
+export const saveSearch = (data) => api.post('/api/search/save', data);
+export const deleteSavedSearch = (id) => api.delete(`/api/search/saved/${id}`);
+
+// Proposal Timeline
+export const getProposalTimeline = (proposalId) => api.get(`/api/timeline/proposal/${proposalId}`);
+export const getTeamTimeline = () => api.get('/api/timeline/team');
+
+// Real-Time
+export const getRealtimeStatus = () => api.get('/api/realtime/status');
+
 export default api;

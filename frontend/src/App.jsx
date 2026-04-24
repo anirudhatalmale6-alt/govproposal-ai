@@ -38,6 +38,9 @@ import N8NAutomation from './pages/N8NAutomation';
 import ProposalScoring from './pages/ProposalScoring';
 import Collaboration from './pages/Collaboration';
 import AdvancedAnalytics from './pages/AdvancedAnalytics';
+import OpportunityAlerts from './pages/OpportunityAlerts';
+import AdvancedSearch from './pages/AdvancedSearch';
+import ProposalTimeline from './pages/ProposalTimeline';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -198,6 +201,9 @@ function AppRoutes() {
         <Route path="/scoring" element={<ProposalScoring />} />
         <Route path="/collaboration" element={<Collaboration />} />
         <Route path="/advanced-analytics" element={<AdvancedAnalytics />} />
+        <Route path="/opportunity-alerts" element={<OpportunityAlerts />} />
+        <Route path="/advanced-search" element={<AdvancedSearch />} />
+        <Route path="/proposal-timeline" element={<ProposalTimeline />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/audit-log" element={<AuditLog />} />

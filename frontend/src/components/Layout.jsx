@@ -30,6 +30,9 @@ import {
   ClipboardDocumentCheckIcon,
   TruckIcon,
   TagIcon,
+  BellAlertIcon,
+  MagnifyingGlassCircleIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -75,6 +78,8 @@ const sidebarContextMap = {
     { label: 'Opportunity Search', path: '/opportunities', icon: MagnifyingGlassIcon },
     { label: 'RFP Deconstructor', path: '/rfp-deconstructor', icon: DocumentMagnifyingGlassIcon },
     { label: 'Saved Opportunities', path: '/opportunities?section=saved', icon: FolderOpenIcon },
+    { label: 'Opportunity Alerts', path: '/opportunity-alerts', icon: BellAlertIcon },
+    { label: 'Advanced Search', path: '/advanced-search', icon: MagnifyingGlassCircleIcon },
   ],
   '/market-research': [
     { label: 'Labor Rate Intelligence', path: '/market-research', icon: CreditCardIcon },
@@ -108,6 +113,7 @@ const sidebarContextMap = {
     { label: 'Collaboration', path: '/collaboration', icon: UserGroupIcon },
     { label: 'Win Probability', path: '/win-probability', icon: TrophyIcon },
     { label: 'Contracts', path: '/contracts', icon: BriefcaseIcon },
+    { label: 'Timeline', path: '/proposal-timeline', icon: CalendarDaysIcon },
   ],
   '/n8n': [
     { label: 'Workflow Automation', path: '/n8n', icon: Cog6ToothIcon },
@@ -138,8 +144,8 @@ export default function Layout() {
   const activeTopTab = topNavTabs.find(tab => {
     if (tab.path === '/dashboard') return currentPath === '/dashboard' || currentPath === '/audit-log' || currentPath === '/billing' || currentPath === '/admin' || currentPath === '/advanced-analytics';
     if (tab.path === '/vendor-profile') return currentPath === '/vendor-profile';
-    if (tab.path === '/opportunities') return currentPath === '/opportunities' || currentPath === '/rfp-deconstructor';
-    if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts' || currentPath === '/scoring' || currentPath === '/collaboration';
+    if (tab.path === '/opportunities') return currentPath === '/opportunities' || currentPath === '/rfp-deconstructor' || currentPath === '/opportunity-alerts' || currentPath === '/advanced-search';
+    if (tab.path === '/new-proposal') return currentPath === '/new-proposal' || currentPath === '/proposals' || currentPath === '/proposal-editor' || currentPath === '/templates' || currentPath === '/win-probability' || currentPath === '/contracts' || currentPath === '/scoring' || currentPath === '/collaboration' || currentPath === '/proposal-timeline';
     if (tab.path === '/compliance') return currentPath === '/compliance' || currentPath.startsWith('/compliance/') || currentPath === '/compliance-matrix';
     if (tab.path === '/knowledgebase') return currentPath === '/knowledgebase';
     if (tab.path === '/past-performance') return currentPath === '/past-performance';

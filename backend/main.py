@@ -50,6 +50,15 @@ from routes.collaboration import router as collaboration_router
 from routes.compliance_check import router as compliance_check_router
 from routes.advanced_analytics import router as analytics_router
 from routes.notifications import router as notifications_router
+from routes.realtime import router as realtime_router
+from routes.opportunity_alerts import router as alerts_router
+from routes.advanced_search import router as search_router
+from routes.timeline import router as timeline_router
+from routes.organizations import router as orgs_router
+from routes.branding import router as branding_router
+from routes.subscription import router as subscription_router
+from routes.advanced_scoring import router as advanced_scoring_router
+from routes.audit import router as audit_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -100,6 +109,15 @@ app.include_router(collaboration_router)
 app.include_router(compliance_check_router)
 app.include_router(analytics_router)
 app.include_router(notifications_router)
+app.include_router(realtime_router)
+app.include_router(alerts_router)
+app.include_router(search_router)
+app.include_router(timeline_router)
+app.include_router(orgs_router)
+app.include_router(branding_router)
+app.include_router(subscription_router)
+app.include_router(advanced_scoring_router)
+app.include_router(audit_router)
 
 # Initialize services
 ai_service = AIService()

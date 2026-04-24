@@ -69,4 +69,6 @@ async def create_tables():
             AIRule, AIRecommendation, N8NWorkflowRun,
         )
         from collab_models.comment import Comment, ProposalVersion  # noqa: F401
+        from models.organization import Organization, OrganizationMember  # noqa: F401
+        from models.subscription import SubscriptionPlan, UsageRecord  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
