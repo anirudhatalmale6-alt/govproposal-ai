@@ -68,4 +68,5 @@ async def create_tables():
             CompanyNAICS, CompanyCompliance, Opportunity, ProposalComplianceCheck,
             AIRule, AIRecommendation, N8NWorkflowRun,
         )
+        from collab_models.comment import Comment, ProposalVersion  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)

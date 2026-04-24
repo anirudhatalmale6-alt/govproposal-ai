@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+backend/venv/
+frontend/node_modules/
+
+# Build artifacts
+frontend/dist/
+__pycache__/
+*.pyc
+
+# Data & databases
+backend/data/
+*.db
+*.sqlite*
+pgdata/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.github/
+
+# Docs & media (not needed in container)
+*.docx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.pptx
+*.log
+screenshots/
+req9_images/
+
+# Dev files
+*.log
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env

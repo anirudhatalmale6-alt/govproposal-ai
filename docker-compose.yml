@@ -1,0 +1,57 @@
+# ============================================================
+# GovProposal AI - Docker Compose
+# ============================================================
+# Usage:
+#   docker compose up              # SQLite (default, simplest)
+#   docker compose --profile postgres up  # With PostgreSQL
+# ============================================================
+
+services:
+  # ── Main application (backend + frontend) ─────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - PORT=${PORT:-8000}
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/govproposal.db}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SAM_API_KEY=${SAM_API_KEY:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+    volumes:
+      - app_data:/app/backend/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── PostgreSQL (optional, activate with --profile postgres) ─
+  postgres:
+    image: postgres:16-alpine
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_DB: govproposal
+      POSTGRES_USER: govproposal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-govproposal_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U govproposal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  app_data:
+  pg_data:

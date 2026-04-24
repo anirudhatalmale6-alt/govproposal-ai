@@ -43,6 +43,13 @@ from services.auth_service import (
 from routes.auth import router as auth_router
 from routes.compliance import router as compliance_router
 from routes.n8n import router as n8n_router
+from routes.health import router as health_router
+from routes.documentation import router as documentation_router
+from routes.scoring import router as scoring_router
+from routes.collaboration import router as collaboration_router
+from routes.compliance_check import router as compliance_check_router
+from routes.advanced_analytics import router as analytics_router
+from routes.notifications import router as notifications_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -69,6 +76,10 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# Rate limiting middleware
+from middleware.rate_limiter import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware)
+
 # CORS middleware - allow all origins for development
 app.add_middleware(
     CORSMiddleware,
@@ -78,10 +89,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include auth routes
+# Include routers
 app.include_router(auth_router)
 app.include_router(compliance_router, prefix="/api/compliance", tags=["Compliance"])
 app.include_router(n8n_router, prefix="/api/n8n", tags=["N8N Automation"])
+app.include_router(health_router)
+app.include_router(documentation_router)
+app.include_router(scoring_router)
+app.include_router(collaboration_router)
+app.include_router(compliance_check_router)
+app.include_router(analytics_router)
+app.include_router(notifications_router)
 
 # Initialize services
 ai_service = AIService()
@@ -201,13 +219,11 @@ async def on_startup():
 
 
 # ============================================================
-# Health Check (public)
+# Health Check — moved to routes/health.py (health_router)
+# Cache Service — backend/services/cache_service.py
+# Rate Limiting — backend/middleware/rate_limiter.py
+# API Documentation — routes/documentation.py
 # ============================================================
-
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"message": "GovProposal AI running", "version": "2.0.0"}
 
 
 # ============================================================
